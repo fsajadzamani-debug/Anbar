@@ -197,7 +197,12 @@ async function startApp() {
 /* ============================ LOGIN ============================ */
 async function renderLogin(firstRun) {
   const showSetup = !(window.ANBAR_CONFIG || {}).supabaseUrl || location.hash === '#setup';
-  if (firstRun === undefined) { try { firstRun = !(await S.store.hasUsers()); } catch (e) { firstRun = false; } }
+  let netErr = '';
+  if (firstRun === undefined) {
+    // اگر سرور جواب ندهد (فیلتر/قطعی)، صفحه ورود معطل نماند
+    try { firstRun = !(await Promise.race([S.store.hasUsers(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))])); }
+    catch (e) { firstRun = false; netErr = /timeout|fetch|network/i.test(e.message) ? 'اتصال به سرور Supabase برقرار نشد — اینترنت/VPN را بررسی کنید و صفحه را رفرش کنید' : e.message; }
+  }
   const nameI = I('<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="12" r="2.5"/><path d="M14 10h4M14 14h3"/>');
   const userI = I('<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>');
   const lockI = I('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.3"/>');
@@ -206,6 +211,7 @@ async function renderLogin(firstRun) {
     <h1>انباریار</h1>
     <div class="login-sub">سامانه انبارداری ${esc(S.settings.company || 'فولاد تکنیک')} · رسید · حواله · موجودی</div>
     ${firstRun ? '<div class="login-links" style="justify-content:center;color:var(--accent)">اولین ورود: حساب مدیر سامانه را بسازید</div>' : ''}
+    ${netErr ? `<div class="login-links" style="justify-content:center;color:var(--danger);text-align:center">${esc(netErr)}</div>` : ''}
     <form id="lf">
       ${firstRun ? `<label class="neu-in">${nameI}<input name="full_name" placeholder="نام و نام خانوادگی" required></label>` : ''}
       <label class="neu-in">${userI}<input name="u" placeholder="نام کاربری" autocomplete="username" required dir="auto"></label>

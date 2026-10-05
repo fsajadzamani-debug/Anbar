@@ -1,0 +1,34 @@
+{
+  "name": "anbaryar",
+  "productName": "Anbaryar",
+  "version": "1.0.0",
+  "description": "انباریار — سامانه انبارداری فولاد تکنیک",
+  "author": "Foolad Technic",
+  "main": "main.js",
+  "scripts": {
+    "prepare-web": "node -e \"const fs=require('fs');fs.rmSync('web',{recursive:true,force:true});fs.mkdirSync('web');for(const f of ['index.html','config.js','manifest.json','sw.js','css','js','lib','fonts','icons'])fs.cpSync('../'+f,'web/'+f,{recursive:true})\"",
+    "start": "npm run prepare-web && electron .",
+    "dist": "npm run prepare-web && electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.anbaryar.wms",
+    "productName": "Anbaryar",
+    "files": ["main.js", "web/**/*"],
+    "win": {
+      "icon": "web/icons/icon-512.png",
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "انباریار",
+      "artifactName": "Anbaryar-Setup-${version}.exe"
+    },
+    "portable": { "artifactName": "Anbaryar-Portable-${version}.exe" }
+  }
+}

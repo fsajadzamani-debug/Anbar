@@ -1,0 +1,122 @@
+/* ======== انباریار — استایل‌های اختصاصی (روی پوسته سامانه مدارک) ======== */
+.num { text-align: left !important; direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+td.neg, span.neg, .neg { color: var(--danger) !important; }
+td.in { color: var(--ok); }
+td.out { color: #c2410c; }
+td.tot { font-weight: 700; }
+.tbl tr.inactive td { opacity: .5; }
+.tbl tr.void td { text-decoration: line-through; text-decoration-color: rgba(201, 54, 54, .5); opacity: .6; }
+.tbl tr.sum-row td { font-weight: 800; background: var(--panel-2); border-top: 2px solid var(--line-2); }
+.tbl tr.open-row td { color: var(--muted); font-style: italic; }
+.nav a .count.hot { background: var(--danger); color: #fff; border-color: var(--danger); }
+.kind-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 8px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); white-space: nowrap; vertical-align: middle; }
+.mini-pill { display: inline-block; font-size: 11px; padding: 0 8px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; margin: 1px; }
+.mini-pill.viewer { background: var(--panel-2); color: var(--muted); }
+.warn-box { padding: 12px 18px; margin-bottom: 14px; background: color-mix(in srgb, var(--warn) 12%, var(--panel)) !important; color: var(--ink); }
+.tile .t-name { display: flex; align-items: center; gap: 6px; }
+.tile .t-name svg { width: 16px; height: 16px; color: var(--c); }
+
+/* دکمه‌های سریع بالا */
+.quick { display: flex; gap: 6px; }
+.btn.qk { color: var(--c); }
+.btn.qk svg { color: var(--c); }
+.type-switch .btn.on { background: var(--c); color: #fff; box-shadow: none; }
+@media (max-width: 860px) { .quick span { display: none; } .quick .btn { padding: 6px 9px; } }
+
+/* کارت انبارها در داشبورد */
+.wh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.wh-card { padding: 14px 16px; cursor: pointer; transition: transform .12s; }
+.wh-card:hover { transform: translateY(-2px); }
+.wh-h { display: flex; align-items: center; gap: 8px; }
+.wh-h svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.wh-h .mini-pill { margin-inline-start: auto; }
+.wh-s { font-size: 12px; min-height: 18px; margin: 2px 0 8px; }
+.wh-n { display: flex; gap: 14px; font-size: 12.5px; flex-wrap: wrap; }
+
+/* ردیف‌های سند */
+table.lines { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+table.lines th { font-size: 12px; color: var(--muted); font-weight: 600; text-align: right; padding: 0 6px; }
+table.lines td { padding: 0 4px; vertical-align: middle; }
+table.lines input { width: 100%; }
+table.lines td[data-u] { font-size: 12.5px; text-align: center; }
+.icon-btn.sm-x { width: 30px; height: 30px; border-radius: 10px; }
+.icon-btn.sm-x svg { width: 14px; height: 14px; }
+.tbl.lines-ro td { padding: 10px 14px; }
+
+/* جستجوی کالا */
+.ac { position: absolute; z-index: 160; background: var(--panel); border-radius: 16px; box-shadow: var(--sh-out, var(--shadow)); max-height: 360px; overflow: auto; padding: 6px; border: 1px solid var(--line); }
+.ac-i { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-size: 13px; }
+.ac-i.on, .ac-i:hover { background: var(--accent-soft); }
+.ac-code { color: var(--accent); font-weight: 600; min-width: 64px; }
+.ac-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-name small { color: var(--muted); }
+.ac-st { font-size: 12px; color: var(--ok); white-space: nowrap; }
+.ac-st.zero { color: var(--muted); }
+.ac-empty { padding: 12px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* جدول موجودی چند انباره */
+.stock-wrap { max-height: calc(100vh - 230px); overflow: auto; }
+.tbl.stock th { z-index: 1; background: var(--panel); }
+.tbl.stock .wh-col { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.tbl th.num { text-align: left; }
+.item-grid { grid-template-columns: 1.6fr 1fr; }
+
+/* زبانه‌های گزارش */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tabs a { padding: 7px 16px; border-radius: 14px; background: var(--panel); box-shadow: var(--sh-out-sm, none); color: var(--ink-2); font-weight: 600; font-size: 13px; border: 1px solid var(--line); }
+.tabs a.on { box-shadow: var(--sh-in, none); color: var(--accent); }
+.filters .date-in { width: 220px; }
+
+/* دسترسی کاربر به انبارها */
+.mem-list { display: grid; gap: 6px; margin-top: 6px; max-height: 320px; overflow: auto; padding: 4px; }
+.mem-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.mem-row select { width: 130px; }
+
+@media (max-width: 1100px) { .item-grid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr !important; } }
+
+/* ============ چاپ سند (A4) ============ */
+.pv { font-family: 'Vazirmatn', Tahoma, sans-serif; color: #000; font-size: 11.5px; page-break-after: always; padding: 2mm; }
+.pv:last-child { page-break-after: auto; }
+.pv table { width: 100%; border-collapse: collapse; }
+.pv .m { font-family: 'IBM Plex Mono', Consolas, monospace; direction: ltr; unicode-bidi: isolate; }
+.pv .b { font-weight: 700; font-size: 12.5px; }
+.pv-h td { border: 1.5px solid #000; padding: 6px 10px; vertical-align: middle; line-height: 1.9; }
+.pv-t { font-size: 18px; font-weight: 800; }
+.pv-void { display: inline-block; border: 2px solid #c00; color: #c00; padding: 0 10px; font-weight: 800; margin-top: 2px; }
+.pv-i td { border: 1px solid #000; border-top: none; padding: 5px 10px; }
+.pv-i span, .pv-h span { color: #444; }
+.pv-l { margin-top: 6px; }
+.pv-l th { border: 1px solid #000; background: #eee; padding: 5px 4px; font-size: 11px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pv-l td { border: 1px solid #000; padding: 4px 5px; text-align: center; height: 22px; }
+.pv-l td.r { text-align: right; }
+.pv-n { border: 1px solid #000; border-top: none; padding: 6px 10px; min-height: 30px; }
+.pv-s { margin-top: 8px; }
+.pv-s td { border: 1px solid #000; height: 70px; vertical-align: top; padding: 6px; text-align: center; font-weight: 700; }
+.pv-s .sl { font-weight: 400; color: #666; font-size: 10px; margin-top: 30px; }
+.pv-f { display: flex; justify-content: space-between; color: #666; font-size: 9.5px; margin-top: 4px; }
+.pv-table .pv-l td { height: auto; font-size: 10.5px; }
+@media print { #print-area .pv-l thead { display: table-header-group; } }
+.tiles { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.tbl td.mono { white-space: nowrap; }
+
+/* موبایل: ردیف‌های سند به‌صورت کارت */
+@media (max-width: 860px) {
+  table.lines, table.lines tbody { display: block; }
+  table.lines thead { display: none; }
+  table.lines tr[data-line] { display: grid; grid-template-columns: 22px 1fr 1fr 34px; grid-template-areas: "n it it x" "n q s u" "n note note note"; gap: 6px; padding: 10px 6px; margin-bottom: 8px; border-radius: 16px; box-shadow: var(--sh-out-sm, var(--shadow)); background: var(--panel); align-items: center; }
+  table.lines tr[data-line] td { display: block; padding: 0; }
+  table.lines td[data-n] { grid-area: n; align-self: start; padding-top: 8px; }
+  table.lines td.ac-cell { grid-area: it; }
+  table.lines td:has([data-rm]) { grid-area: x; }
+  table.lines td:has([data-q]) { grid-area: q; }
+  table.lines td[data-s] { grid-area: s; text-align: center; }
+  table.lines td[data-u] { grid-area: u; }
+  table.lines td:has([data-note]) { grid-area: note; }
+  table.lines [data-q]::placeholder, table.lines [data-note]::placeholder { color: var(--muted); }
+  .form-actions { flex-wrap: wrap; }
+  .form-actions > span { display: none; }
+  .form-actions .btn { flex: 1; justify-content: center; }
+  .ac { width: calc(100vw - 16px) !important; left: 8px !important; }
+  .ac-i .kind-tag { display: none; }
+}

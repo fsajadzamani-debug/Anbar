@@ -1,0 +1,7 @@
+node_modules/
+desktop/web/
+desktop/dist/
+*.log
+.DS_Store
+__pycache__/
+import*.json

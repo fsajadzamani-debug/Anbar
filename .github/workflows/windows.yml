@@ -1,0 +1,46 @@
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'tools/**', 'supabase/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        working-directory: desktop
+        run: npm install
+      - name: Build exe
+        working-directory: desktop
+        run: npm run dist
+      - name: Build single-file HTML
+        run: python tools/build_single.py --online -o desktop/dist/anbaryar.html
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anbaryar-Windows
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/anbaryar.html
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: انباریار — نسخه ${{ github.run_number }}
+          body: |
+            فایل نصبی: Anbaryar-Setup-*.exe
+            نسخه بدون نصب (قابل حمل): Anbaryar-Portable-*.exe
+            نسخه تک‌فایلی HTML (بدون نصب، در مرورگر): anbaryar.html
+          files: |
+            desktop/dist/*.exe
+            desktop/dist/anbaryar.html

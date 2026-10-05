@@ -72,7 +72,7 @@ def demo():
 
 
 seed = f'<script>window.ANBAR_DEMO_SEED = {json.dumps(demo(), ensure_ascii=False)};</script>' if a.demo else ''
-files = (['lib/supabase.js'] if a.online else []) + ['lib/xlsx.full.min.js', 'js/jalali.js', 'js/store.js', 'js/app.js', 'js/docs.js', 'js/stock.js', 'js/admin.js']
+files = (['lib/supabase.js'] if a.online else []) + ['lib/xlsx.full.min.js', 'js/jalali.js', 'js/store.js', 'js/app.js', 'js/docs.js', 'js/stock.js', 'js/charts.js', 'js/admin.js']
 js = ''.join(f'<script>\n{rd(p)}\n</script>\n' for p in files)
 js = js.replace("if ('serviceWorker' in navigator", "if (false && 'serviceWorker' in navigator")
 icon = f"data:image/svg+xml;base64,{base64.b64encode(rd('icons/icon.svg').encode()).decode()}"

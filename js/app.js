@@ -33,6 +33,7 @@ const can = {
   see: w => can.seeAll() || (S.user?.role === 'user' && (S.user.members || []).some(m => m.warehouse_id === w)),
   write: w => can.admin() || (S.user?.role === 'user' && (S.user.members || []).some(m => m.warehouse_id === w && m.role === 'keeper')),
   writeAny: () => can.admin() || (S.user?.role === 'user' && (S.user.members || []).some(m => m.role === 'keeper')),
+  reports: () => ['admin', 'auditor'].includes(S.user?.role),   // گزارش، چارت و آمار فقط برای مدیر/ناظر
 };
 const myWh = () => S.warehouses.filter(w => can.see(w.id));
 const writableWh = () => S.warehouses.filter(w => w.active !== false && can.write(w.id));
@@ -74,6 +75,7 @@ const ICON = {
   adj: I('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
   ban: I('<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>'),
   key: I('<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/>'),
+  lock: I('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
 };
 const DT_ICON = { receipt: ICON.in, issue: ICON.out, transfer: ICON.swap, return: ICON.ret, adjust: ICON.adj };
 
@@ -150,7 +152,7 @@ async function loadAll() {
     S.store.getSettings(), S.store.listWarehouses(), S.store.listItems(), S.store.listDocs(), S.store.listStock(), S.store.listAssets()]);
   Object.assign(S, { settings, warehouses, items, docs, stock, assets });
   rebuildIndex();
-  if (S.whId !== 'all' && !myWh().some(w => w.id === S.whId)) S.whId = 'all';
+  if (S.whId === 'all' ? !can.seeAll() : !myWh().some(w => w.id === S.whId)) S.whId = can.seeAll() ? 'all' : (myWh()[0]?.id || 'all');
 }
 async function reloadStock() {
   const [docs, stock] = await Promise.all([S.store.listDocs(), S.store.listStock()]);
@@ -256,6 +258,7 @@ function renderShell() {
         <button class="icon-btn" id="themeBtn" title="تغییر پوسته">${document.documentElement.dataset.theme === 'dark' ? ICON.sun : ICON.moon}</button>
         <div class="user-chip" id="userChip"><span>${esc(S.user.full_name || S.user.username)}</span><div class="avatar">${esc((S.user.full_name || S.user.username || '?').trim()[0])}</div></div>
       </header>
+      <nav class="wh-tabs" id="whTabs"></nav>
       <main class="content" id="view"></main>
     </div></div><div id="toasts"></div><div id="print-area"></div>`;
   refreshNav();
@@ -287,19 +290,18 @@ function refreshNav() {
   const a = (href, icon, label, count, dot, hot) => `<a href="${href}" class="${cur === href || (href !== '#/dash' && cur.startsWith(href + '/')) ? 'active' : ''}">${dot ? `<span class="dot" style="background:${dot}"></span>` : icon}<span>${label}</span>${count !== undefined ? `<span class="count ${hot ? 'hot' : ''}">${count}</span>` : ''}</a>`;
   side.innerHTML = `
     <div class="brand"><div class="brand-mark">WMS</div><div><b>انباریار</b><small>${esc(S.settings.company || 'فولاد تکنیک')}</small></div></div>
-    <div class="proj-select"><select id="whSel">${myWh().length > 1 ? `<option value="all">همه انبارها (${myWh().length})</option>` : ''}${myWh().map(w => `<option value="${w.id}" ${S.whId === w.id ? 'selected' : ''}>${esc(w.name)}${w.active === false ? ' (غیرفعال)' : ''}</option>`).join('')}</select></div>
     <nav class="nav">
       ${a('#/dash', ICON.dash, 'داشبورد')}
-      ${a('#/stock', ICON.stock, 'موجودی انبار', low || undefined, '', true)}
+      ${a('#/stock', ICON.stock, 'موجودی انبار', can.reports() && low ? low : undefined, '', true)}
       <div class="nav-label">اسناد انبار</div>
       ${a('#/docs/all', ICON.all, 'همه اسناد', docs.filter(d => d.status !== 'void').length)}
       ${DT_KEYS.map(t => a('#/docs/' + t, '', DT[t].fa, docs.filter(d => d.type === t && d.status !== 'void').length, DT[t].color)).join('')}
       <div class="nav-label">ابزار</div>
       ${a('#/items', ICON.box, 'کالاها / شناسنامه کالا', S.items.length)}
       ${a('#/assets', ICON.tag, 'اموال', S.assets.length)}
-      ${a('#/reports', ICON.report, 'گزارش‌ها')}
+      ${can.reports() ? a('#/reports', ICON.report, 'گزارش‌ها و آمار') : ''}
       ${can.writeAny() ? a('#/import', ICON.import, 'ورود از اکسل') : ''}
-      ${a('#/log', ICON.log, 'تاریخچه')}
+      ${can.reports() ? a('#/log', ICON.log, 'تاریخچه') : ''}
       ${can.admin() ? `<div class="nav-label">مدیریت</div>
         ${a('#/warehouses', ICON.wh, 'انبارها', S.warehouses.length)}
         ${a('#/users', ICON.users, 'کاربران و دسترسی')}` : ''}
@@ -309,8 +311,28 @@ function refreshNav() {
       <span class="mode-pill ${S.store.mode}">${S.store.mode === 'online' ? '● آنلاین — اشتراکی' : '● حالت آزمایشی محلی'}</span>
       <div class="muted" style="margin-top:6px">${esc(S.user.username)} · ${ROLE_FA[S.user.role] || S.user.role}</div>
     </div>`;
-  $('#whSel').onchange = ev => { S.whId = ev.target.value; localStorage.setItem('wh_sel', S.whId); refreshNav(); route(); };
+  renderTabs();
   $$('#side a').forEach(x => x.addEventListener('click', () => $('#shell').classList.remove('nav-open')));
+}
+
+/* ---------- تب انبارها ---------- */
+function renderTabs() {
+  const box = $('#whTabs'); if (!box) return;
+  const list = S.warehouses.filter(w => w.active !== false || can.admin());
+  const tab = (id, name, sub, locked, extra = '') => `<button class="wh-tab ${S.whId === id ? 'on' : ''} ${locked ? 'locked' : ''}" data-wh="${id}" ${locked ? 'title="به این انبار دسترسی ندارید"' : ''}>
+    ${locked ? `<span class="lk">${ICON.lock}</span>` : ICON.wh}<span class="tn"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>${extra}</button>`;
+  box.innerHTML = (can.seeAll() ? tab('all', 'همه انبارها', list.length + ' انبار', false) : '') +
+    list.map(w => tab(w.id, w.name, w.project || WH_KINDS[w.kind] || '', !can.see(w.id),
+      can.see(w.id) && !can.seeAll() ? `<i class="role-dot">${can.write(w.id) ? 'انباردار' : 'مشاهده'}</i>` : (w.active === false ? '<i class="role-dot">غیرفعال</i>' : ''))).join('') +
+    (can.admin() ? `<a class="wh-tab add" href="#/warehouses" title="تعریف انبار">${ICON.plus}</a>` : '');
+  $$('[data-wh]', box).forEach(b => b.onclick = () => b.classList.contains('locked') ? toast('به انبار «' + b.querySelector('b').textContent + '» دسترسی ندارید') : setWh(b.dataset.wh));
+  box.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function setWh(id) {
+  if (id !== 'all' && !can.see(id)) return;
+  S.whId = id; localStorage.setItem('wh_sel', id);
+  const r = parseHash();
+  if (['doc', 'edit', 'item'].includes(r.view)) location.hash = '#/dash'; else { refreshNav(); route(); }
 }
 
 /* ============================ ROUTER ============================ */
@@ -341,9 +363,9 @@ async function route(silent) {
       case 'item': await renderItem(r.id); break;
       case 'items': renderItems(silent); break;
       case 'assets': renderAssets(silent); break;
-      case 'reports': await renderReports(r.id || 'low'); break;
+      case 'reports': can.reports() ? await renderReports(r.id || 'low') : renderDash(); break;
       case 'import': renderImport(); break;
-      case 'log': await renderLog(); break;
+      case 'log': can.reports() ? await renderLog() : renderDash(); break;
       case 'warehouses': can.admin() ? renderWarehouses() : renderDash(); break;
       case 'users': can.admin() ? await renderUsers() : renderDash(); break;
       case 'settings': renderSettings(); break;
@@ -358,6 +380,7 @@ function lowItems(whs = selWh()) {
   return S.items.filter(i => i.active !== false && +i.min_qty > 0 && stockTotal(i.id, whs) < +i.min_qty);
 }
 function renderDash() {
+  if (!can.reports()) return renderWhHome();
   const whs = selWh(), vis = new Set(whs.map(w => w.id));
   const docs = S.docs.filter(d => d.status !== 'void' && (vis.has(d.warehouse_id) || vis.has(d.to_warehouse_id)));
   const today = Jalali.today(), month = today.slice(0, 7);
@@ -375,7 +398,7 @@ function renderDash() {
     const n = S.stock.filter(s => s.warehouse_id === w.id && +s.qty > 0).length;
     const dn = S.docs.filter(d => d.status !== 'void' && (d.warehouse_id === w.id || d.to_warehouse_id === w.id));
     const last = dn.reduce((m, d) => d.doc_date > m ? d.doc_date : m, '');
-    return `<div class="card wh-card" onclick="document.getElementById('whSel').value='${w.id}';document.getElementById('whSel').dispatchEvent(new Event('change'));location.hash='#/stock'">
+    return `<div class="card wh-card" onclick="setWh('${w.id}')">
       <div class="wh-h">${ICON.wh}<b>${esc(w.name)}</b>${w.active === false ? '<span class="badge" style="background:#64748b1a;color:#64748b">غیرفعال</span>' : ''}${can.write(w.id) ? '<span class="mini-pill">انباردار</span>' : ''}</div>
       <div class="muted wh-s">${esc([WH_KINDS[w.kind], w.project, w.keeper_name].filter(Boolean).join(' · '))}</div>
       <div class="wh-n"><span><b class="mono">${n}</b> قلم موجود</span><span><b class="mono">${dn.length}</b> سند</span><span class="muted">آخرین: <span class="mono">${last || '—'}</span></span></div></div>`;
@@ -387,11 +410,12 @@ function renderDash() {
       <div class="card tile" style="--c:#c93636" onclick="location.hash='#/reports/low'"><div class="t-name">${ICON.ban}کمتر از حداقل</div><div class="t-num" style="${low.length ? 'color:var(--danger)' : ''}">${low.length}</div><div class="t-meta"><span>قلم کالا زیر نقطه سفارش</span></div></div>
     </div>
     ${whs.length > 1 ? `<div class="wh-grid">${whCards}</div>` : ''}
+    <div class="chart-grid" id="charts"></div>
     <div class="grid-2">
       <div class="card"><div class="card-h">آخرین اسناد<div class="actions"><a class="btn sm" href="#/docs/all">همه</a></div></div>
         ${recent.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>نوع</th><th>شماره</th><th>تاریخ</th><th>انبار</th><th>طرف حساب / پروژه</th><th>ثبت</th></tr></thead><tbody>
         ${recent.map(d => `<tr onclick="location.hash='#/doc/${d.id}'"><td>${dtTag(d.type)}</td><td class="mono">${esc(d.doc_no)}</td><td class="mono">${esc(d.doc_date)}</td>
-          <td>${esc(whName(d.warehouse_id))}${d.to_warehouse_id ? ` ← <b>${esc(whName(d.to_warehouse_id))}</b>` : ''}</td><td class="subj">${esc([d.party, d.project].filter(Boolean).join(' · '))}</td><td class="muted" style="font-size:12px">${esc(d.created_name || '')}</td></tr>`).join('')}
+          <td style="white-space:nowrap">${esc(whName(d.warehouse_id))}${d.to_warehouse_id ? ` ← <b>${esc(whName(d.to_warehouse_id))}</b>` : ''}</td><td class="subj">${esc([d.party, d.project].filter(Boolean).join(' · '))}</td><td class="muted" style="font-size:12px">${esc(d.created_name || '')}</td></tr>`).join('')}
         </tbody></table></div>` : `<div class="empty"><b>هنوز سندی ثبت نشده</b>${writableWh().length ? 'از دکمه «رسید جدید» یا «ورود از اکسل ← موجودی اول دوره» شروع کنید' : ''}</div>`}
       </div>
       <div class="card"><div class="card-h">کمتر از حداقل موجودی<div class="actions"><a class="btn sm" href="#/reports/low">گزارش</a></div></div>
@@ -400,4 +424,5 @@ function renderDash() {
         </tbody></table></div>` : '<div class="empty">همه کالاها بالاتر از حداقل موجودی هستند</div>'}
       </div>
     </div>`;
+  drawDashCharts(whs);
 }

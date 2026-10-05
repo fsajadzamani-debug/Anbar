@@ -120,3 +120,51 @@ table.lines td[data-u] { font-size: 12.5px; text-align: center; }
   .ac { width: calc(100vw - 16px) !important; left: 8px !important; }
   .ac-i .kind-tag { display: none; }
 }
+
+/* ===== تب انبارها ===== */
+.wh-tabs { display: flex; gap: 10px; overflow-x: auto; padding: 12px 22px 6px; scrollbar-width: thin; }
+.wh-tab { flex: none; display: flex; align-items: center; gap: 9px; padding: 9px 16px; border-radius: 18px; border: none; background: var(--panel); box-shadow: var(--sh-out-sm, var(--shadow)); cursor: pointer; color: var(--ink-2); font: inherit; text-align: right; position: relative; transition: transform .12s; }
+.wh-tab:hover { transform: translateY(-1px); }
+.wh-tab svg { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.wh-tab .tn { display: flex; flex-direction: column; line-height: 1.35; }
+.wh-tab .tn b { font-size: 13.5px; white-space: nowrap; }
+.wh-tab .tn small { font-size: 11px; color: var(--muted); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.wh-tab.on { box-shadow: var(--sh-in, inset 0 0 0 2px var(--accent)); color: var(--accent); }
+.wh-tab.on::after { content: ''; position: absolute; bottom: 4px; right: 16px; left: 16px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent))); }
+.wh-tab .role-dot { font-style: normal; font-size: 10.5px; padding: 0 7px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.wh-tab.add { padding: 9px 12px; }
+/* انبارهای بدون دسترسی: شیشه‌ای و قفل */
+.wh-tab.locked { cursor: not-allowed; background: color-mix(in srgb, var(--panel) 45%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-2) 70%, transparent); }
+.wh-tab.locked:hover { transform: none; }
+.wh-tab.locked .tn { filter: blur(1.4px); opacity: .55; user-select: none; }
+.wh-tab.locked .lk svg { color: var(--muted); width: 15px; height: 15px; }
+@media (max-width: 860px) { .wh-tabs { padding: 10px 14px 4px; } .wh-tab { padding: 7px 12px; } }
+
+/* ===== کارت‌های اقدام سریع (صفحه انبار) ===== */
+.act-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.act-card { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 24px; background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, var(--panel)), var(--panel) 60%); box-shadow: var(--sh-out, var(--shadow)); color: var(--ink); transition: transform .12s; }
+.act-card:hover { transform: translateY(-2px); }
+.act-card svg { width: 26px; height: 26px; color: var(--c); }
+.act-card b { font-size: 15px; }
+.act-card small { color: var(--muted); font-size: 12px; }
+
+/* ===== چارت‌ها ===== */
+:root { --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; } }
+:root[data-theme="dark"] { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.chart-grid .card-h small { margin-inline-start: auto; }
+.vz { width: 100%; height: auto; display: block; }
+.vz-grid { stroke: var(--line); stroke-width: 1; }
+.vz-ax { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+.vz-hit { fill: transparent; cursor: default; }
+.vz-legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+.vz-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 5px; vertical-align: -1px; }
+.hb { display: grid; gap: 8px; }
+.hb-r { display: grid; grid-template-columns: minmax(80px, 34%) 1fr auto; align-items: center; gap: 10px; font-size: 12.5px; cursor: default; }
+.hb-r[onclick] { cursor: pointer; }
+.hb-l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.hb-t { height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; display: flex; justify-content: flex-start; }
+.hb-t i { display: block; height: 100%; background: var(--viz-1); border-radius: 6px 0 0 6px; margin-inline-start: 0; }
+.hb-r b { font-size: 12px; color: var(--ink); }
+.vz-tip { position: fixed; z-index: 300; display: none; background: var(--ink); color: var(--panel); padding: 5px 10px; border-radius: 9px; font-size: 12px; pointer-events: none; white-space: nowrap; }

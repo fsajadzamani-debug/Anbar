@@ -1,8 +1,8 @@
 /* لایه داده انباریار — دو حالت:
-   1) Supabase (آنلاین، اشتراکی؛ همان پروژه و همان کاربران سامانه مدارک)
+   1) Supabase (آنلاین، اشتراکی بین همه کاربران)
    2) محلی (آزمایشی، فقط روی همین مرورگر) وقتی تنظیمات اتصال وارد نشده */
 
-const EMAIL_DOMAIN = '@madarek.app';          // همان دامنه سامانه مدارک ← حساب‌ها مشترک‌اند
+const EMAIL_DOMAIN = '@anbaryar.app';         // ورود با نام کاربری؛ ایمیل واقعی ارسال نمی‌شود
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
 const SIGN = { receipt: 1, return: 1, issue: -1, transfer: -1, adjust: 1 };
 
@@ -28,7 +28,7 @@ const errFa = m => {
   if (/foreign key.*wh_lines|wh_lines.*foreign key|wh_lines_item_id_fkey/i.test(m) || /still referenced/i.test(m)) return 'این مورد در اسناد استفاده شده و قابل حذف نیست؛ می‌توانید آن را غیرفعال کنید';
   if (/duplicate key.*code/i.test(m)) return 'این کد قبلاً ثبت شده است';
   if (/duplicate key.*tag_no/i.test(m)) return 'این شماره اموال قبلاً ثبت شده است';
-  if (/wh_(save_doc|role|stock)|relation .*wh_|schema cache/i.test(m)) return 'جدول‌های انبار در Supabase ساخته نشده‌اند — فایل supabase/schema.sql را اجرا کنید';
+  if (/wh_(save_doc|role|stock|profiles|has_users)|relation .*wh_|schema cache/i.test(m)) return 'جدول‌های انبار در Supabase ساخته نشده‌اند — فایل supabase/schema.sql را اجرا کنید';
   return m;
 };
 
@@ -37,8 +37,7 @@ class SupaStore {
   constructor(cfg) {
     this.mode = 'online';
     this.cfg = cfg;
-    // storageKey همان سامانه مدارک: اگر روی یک دامنه باشند، ورود مشترک است
-    this.sb = supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, storageKey: 'dm-auth' } });
+    this.sb = supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, storageKey: 'wh-auth' } });
     this.user = null;
   }
   _check({ data, error }) { if (error) throw new Error(errFa(error.message)); return data; }
@@ -48,13 +47,13 @@ class SupaStore {
     return this.user;
   }
   async _loadProfile(authUser) {
-    const { data, error } = await this.sb.from('dm_profiles').select('*').eq('id', authUser.id).maybeSingle();
+    const { data, error } = await this.sb.from('wh_profiles').select('*').eq('id', authUser.id).maybeSingle();
     if (error) throw new Error(errFa(error.message));
-    const p = data || { id: authUser.id, username: authUser.email.split('@')[0], role: 'pending' };
+    const p = data || { id: authUser.id, username: authUser.email.split('@')[0] };
     const r = await this.sb.rpc('wh_role');
     if (r.error) throw new Error(errFa(r.error.message));
     const mem = this._check(await this.sb.from('wh_members').select('*').eq('user_id', p.id));
-    this.user = { ...p, dm_role: p.role, role: r.data, members: mem };
+    this.user = { ...p, role: r.data, members: mem };
     return this.user;
   }
   async login(username, password) {
@@ -63,21 +62,30 @@ class SupaStore {
     if (error) throw new Error(error.message.includes('Invalid') ? 'نام کاربری یا رمز عبور اشتباه است' : error.message);
     return this._loadProfile(data.user);
   }
+  async hasUsers() { const r = await this.sb.rpc('wh_has_users'); if (r.error) throw new Error(errFa(r.error.message)); return r.data; }
+  async register(username, password, full_name) {   // فقط برای ساخت اولین مدیر
+    const uname = username.trim().toLowerCase();
+    const { data, error } = await this.sb.auth.signUp({ email: uname + EMAIL_DOMAIN, password, options: { data: { username: uname, full_name } } });
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error('در Supabase بخش Authentication → Sign In / Providers → Email گزینه Confirm email را خاموش کنید و دوباره وارد شوید.');
+    return this._loadProfile(data.user);
+  }
   async logout() { await this.sb.auth.signOut(); this.user = null; }
   async changePassword(pw) { const { error } = await this.sb.auth.updateUser({ password: pw }); if (error) throw new Error(error.message); }
-  async updateMyName(full_name) { this._check(await this.sb.from('dm_profiles').update({ full_name }).eq('id', this.user.id)); this.user.full_name = full_name; }
+  async updateMyName(full_name) { this._check(await this.sb.from('wh_profiles').update({ full_name }).eq('id', this.user.id)); this.user.full_name = full_name; }
 
   /* ---------- کاربران ---------- */
   async listUsers() { return this._check(await this.sb.rpc('wh_list_users')); }
   async setUserAccess(id, role, members) { this._check(await this.sb.rpc('wh_admin_set_user', { target: id, new_role: role, members })); }
   async setPassword(id, pw) { this._check(await this.sb.rpc('wh_admin_set_password', { target: id, new_password: pw })); }
+  async deleteUser(id) { this._check(await this.sb.rpc('wh_admin_delete_user', { target: id })); }
   async createUser({ username, password, full_name }) {
     const tmp = supabase.createClient(this.cfg.url, this.cfg.key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'wh-tmp' } });
     const uname = username.trim().toLowerCase();
     const { data, error } = await tmp.auth.signUp({ email: uname + EMAIL_DOMAIN, password, options: { data: { username: uname, full_name } } });
-    if (error) throw new Error(error.message.includes('registered') ? 'این نام کاربری قبلاً ثبت شده؛ از فهرست، دسترسی انبار به او بدهید' : error.message);
-    if (!data.user || (data.user.identities && !data.user.identities.length)) throw new Error('این نام کاربری قبلاً ثبت شده؛ از فهرست، دسترسی انبار به او بدهید');
-    // پروفایل توسط تریگر سامانه مدارک ساخته می‌شود؛ کمی صبر تا آماده شود
+    if (error) throw new Error(error.message.includes('registered') ? 'این نام کاربری قبلاً ثبت شده' : error.message);
+    if (!data.user || (data.user.identities && !data.user.identities.length)) throw new Error('این نام کاربری قبلاً ثبت شده');
+    // پروفایل توسط تریگر دیتابیس ساخته می‌شود؛ کمی صبر تا آماده شود
     for (let i = 0; i < 8; i++) {
       const u = (await this.listUsers()).find(x => x.id === data.user.id);
       if (u) return u;
@@ -175,7 +183,7 @@ class SupaStore {
 class LocalStore {
   constructor() {
     this.mode = 'local';
-    this.user = { id: 'local', username: 'admin', full_name: 'مدیر (محلی)', role: 'admin', dm_role: 'admin', members: [] };
+    this.user = { id: 'local', username: 'admin', full_name: 'مدیر (محلی)', role: 'admin', members: [] };
   }
   _get(k, d) {
     try { const v = localStorage.getItem('whl_' + k); if (v !== null) return JSON.parse(v) ?? d; } catch (e) { /* storage blocked */ }
@@ -196,7 +204,8 @@ class LocalStore {
   async logout() { }
   async changePassword() { }
   async updateMyName(n) { this.user.full_name = n; }
-  async listUsers() { return [{ id: 'local', username: 'admin', full_name: 'مدیر (محلی)', dm_role: 'admin', wh_role: 'admin', members: [] }]; }
+  async listUsers() { return [{ id: 'local', username: 'admin', full_name: 'مدیر (محلی)', wh_role: 'admin', members: [] }]; }
+  async deleteUser() { throw new Error('در حالت محلی فعال نیست'); }
   async setUserAccess() { throw new Error('در حالت محلی مدیریت کاربران فعال نیست'); }
   async setPassword() { throw new Error('در حالت محلی فعال نیست'); }
   async createUser() { throw new Error('در حالت محلی ساخت کاربر فعال نیست؛ ابتدا اتصال Supabase را تنظیم کنید'); }

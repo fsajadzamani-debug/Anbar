@@ -49,17 +49,17 @@ function whModal(w) {
 async function renderUsers() {
   const users = await S.store.listUsers();
   $('#view').innerHTML = `
-    <div class="page-head"><div><h1>کاربران و دسترسی انبار</h1><div class="sub">همان حساب‌های سامانه مدارک · نقش انبار جدا از نقش مدارک تعیین می‌شود</div></div>
+    <div class="page-head"><div><h1>کاربران و دسترسی انبار</h1><div class="sub">${users.length} کاربر</div></div>
       <div class="actions"><button class="btn primary" id="add">${ICON.plus}کاربر جدید</button></div></div>
-    <div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>نام</th><th>نام کاربری</th><th>نقش در مدارک</th><th>نقش در انبار</th><th>انبارها</th></tr></thead><tbody>
-      ${users.map(u => `<tr data-id="${u.id}" class="${u.wh_role === 'none' ? 'inactive' : ''}"><td><b>${esc(u.full_name || '')}</b></td><td class="mono">${esc(u.username)}</td><td class="muted">${esc(DM_ROLE_FA[u.dm_role] || u.dm_role)}</td>
-        <td>${u.wh_role === 'admin' ? '<b style="color:var(--accent)">مدیر انبار</b>' : esc(ROLE_FA[u.wh_role] || u.wh_role)}${u.dm_role === 'admin' ? ' <small class="muted">(خودکار — مدیر مدارک)</small>' : ''}</td>
+    <div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>نام</th><th>نام کاربری</th><th>نقش</th><th>انبارها</th></tr></thead><tbody>
+      ${users.map(u => `<tr data-id="${u.id}" class="${u.wh_role === 'none' ? 'inactive' : ''}"><td><b>${esc(u.full_name || '')}</b></td><td class="mono">${esc(u.username)}</td>
+        <td>${u.wh_role === 'admin' ? '<b style="color:var(--accent)">مدیر انبار</b>' : esc(ROLE_FA[u.wh_role] || u.wh_role)}${u.id === S.user.id ? ' <small class="muted">(شما)</small>' : ''}</td>
         <td style="font-size:12.5px">${u.wh_role === 'user' ? (u.members || []).map(m => `<span class="mini-pill ${m.role}">${esc(whName(m.warehouse_id))} · ${MEM_FA[m.role]}</span>`).join(' ') || '<span class="neg">هیچ انباری</span>' : u.wh_role === 'none' ? '' : '<span class="muted">همه انبارها</span>'}</td></tr>`).join('')}
     </tbody></table></div></div>
     <div class="card" style="margin-top:14px"><div class="card-b muted" style="font-size:13px;line-height:2.1">
       <b>مدیر انبار:</b> همه انبارها، تعریف انبار/کالا/کاربر، ویرایش و ابطال سند · <b>ناظر:</b> مشاهده و گزارش همه انبارها بدون ثبت ·
       <b>کاربر انبار:</b> فقط انبارهای تعیین‌شده؛ در هر انبار «انباردار» (ثبت رسید/حواله) یا «مشاهده».<br>
-      کاربری که فقط برای انبار ساخته می‌شود در سامانه مدارک «در انتظار تأیید» می‌ماند و به مدارک دسترسی ندارد.
+      برای غیرفعال کردن کسی، نقشش را «بدون دسترسی» بگذارید.
     </div></div>`;
   $('#add').onclick = () => userModal(null, users);
   $$('tbody tr[data-id]').forEach(r => r.onclick = () => userModal(users.find(u => u.id === r.dataset.id), users));
@@ -67,21 +67,25 @@ async function renderUsers() {
 function userModal(u, users) {
   const isNew = !u; u = u || { wh_role: 'user', members: [] };
   const mem = Object.fromEntries((u.members || []).map(m => [m.warehouse_id, m.role]));
-  const locked = u.dm_role === 'admin';
+  const locked = u.id === S.user.id;
   const m = modal(isNew ? 'کاربر جدید' : 'دسترسی ' + esc(u.full_name || u.username), `
     ${isNew ? `<div class="fgrid" style="--cols:2;margin-bottom:14px">
       <div class="fld"><label class="l">نام و نام خانوادگی *</label><input id="uName" dir="auto"></div>
       <div class="fld"><label class="l">نام کاربری * <small>انگلیسی</small></label><input id="uUser" class="mono" dir="ltr"></div>
       <div class="fld"><label class="l">رمز عبور * <small>حداقل ۶</small></label><input id="uPw" class="mono" dir="ltr"></div></div>
-      <p class="muted" style="font-size:12.5px;margin-top:0">اگر این شخص در سامانه مدارک حساب دارد، کاربر جدید نسازید؛ از فهرست روی نامش بزنید.</p>` :
-      `<p class="muted" style="margin-top:0">نام کاربری: <b class="mono">${esc(u.username)}</b> · نقش در مدارک: ${esc(DM_ROLE_FA[u.dm_role] || u.dm_role)}</p>`}
-    ${locked ? '<div class="warn-box card">این کاربر مدیر سامانه مدارک است و خودکار مدیر انبار هم هست.</div>' : `
+` :
+      `<p class="muted" style="margin-top:0">نام کاربری: <b class="mono">${esc(u.username)}</b></p>`}
+    ${locked ? '<div class="warn-box card">این حساب خودتان است؛ نقش خودتان را نمی‌توانید تغییر دهید. رمزتان را از «تنظیمات» عوض کنید.</div>' : `
     <div class="form-row"><label>نقش در انبار</label><select id="uRole">${Object.entries(ROLE_FA).map(([k, v]) => `<option value="${k}" ${u.wh_role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
     <div id="memBox" class="${u.wh_role === 'user' ? '' : 'hidden'}"><label style="font-size:12.5px;font-weight:600">انبارهای مجاز</label>
       <div class="mem-list">${S.warehouses.map(w => `<div class="mem-row"><span>${esc(w.name)}${w.active === false ? ' <small class="muted">(غیرفعال)</small>' : ''}</span>
         <select data-w="${w.id}"><option value="">—</option><option value="keeper" ${mem[w.id] === 'keeper' ? 'selected' : ''}>انباردار</option><option value="viewer" ${mem[w.id] === 'viewer' ? 'selected' : ''}>مشاهده</option></select></div>`).join('') || '<div class="muted">اول انبارها را تعریف کنید</div>'}</div></div>`}
-    ${!isNew ? `<div class="form-row" style="margin-top:14px"><label>تغییر رمز عبور</label><div style="display:flex;gap:6px"><input id="uNewPw" class="mono" dir="ltr" style="flex:1" placeholder="رمز جدید"><button class="btn" id="uSetPw">${ICON.key}تغییر رمز</button></div></div>` : ''}`,
-  { footer: locked && !isNew ? '<button class="btn" data-close>بستن</button>' : `<button class="btn primary" id="uSave">${isNew ? 'ساخت کاربر' : 'ذخیره دسترسی'}</button><button class="btn" data-close>انصراف</button>` });
+    ${!isNew && !locked ? `<div class="form-row" style="margin-top:14px"><label>تغییر رمز عبور</label><div style="display:flex;gap:6px"><input id="uNewPw" class="mono" dir="ltr" style="flex:1" placeholder="رمز جدید"><button class="btn" id="uSetPw">${ICON.key}تغییر رمز</button></div></div>` : ''}`,
+  { footer: locked && !isNew ? '<button class="btn" data-close>بستن</button>' : `<button class="btn primary" id="uSave">${isNew ? 'ساخت کاربر' : 'ذخیره دسترسی'}</button>${!isNew ? `<button class="btn danger" id="uDel">${ICON.trash}حذف کاربر</button>` : ''}<button class="btn" data-close>انصراف</button>` });
+  if ($('#uDel', m.el)) $('#uDel', m.el).onclick = async () => {
+    if (!(await confirmBox(`حساب «${esc(u.full_name || u.username)}» حذف شود؟ اسنادی که ثبت کرده باقی می‌مانند.`, 'حذف کاربر'))) return;
+    await busy(null, async () => { await S.store.deleteUser(u.id); m.close(); toast('حذف شد', 'ok'); renderUsers(); });
+  };
   if ($('#uRole', m.el)) $('#uRole', m.el).onchange = ev => $('#memBox', m.el).classList.toggle('hidden', ev.target.value !== 'user');
   const members = () => $$('[data-w]', m.el).filter(s => s.value).map(s => ({ warehouse_id: s.dataset.w, role: s.value }));
   if ($('#uSave', m.el)) $('#uSave', m.el).onclick = ev => busy(ev.target, async () => {
@@ -199,7 +203,6 @@ function renderSettings() {
         <div class="muted" style="margin-bottom:12px">نام کاربری: <b class="mono">${esc(S.user.username)}</b> · نقش انبار: ${ROLE_FA[S.user.role]}
           ${S.user.role === 'user' ? '<br>انبارها: ' + (S.user.members || []).map(m => `${esc(whName(m.warehouse_id))} (${MEM_FA[m.role]})`).join('، ') : ''}</div>
         ${S.store.mode === 'online' ? `<div class="form-row"><label>رمز عبور جدید</label><div style="display:flex;gap:6px"><input id="myPw" type="password" class="ltr" minlength="6" style="flex:1"><button class="btn" id="savePw">تغییر رمز</button></div></div>
-        <div class="muted" style="font-size:12px;margin-bottom:10px">رمز عبور با سامانه مدارک مشترک است.</div>
         <button class="btn danger" id="logout">${ICON.logout}خروج از حساب</button>` : ''}
       </div></div>
       ${can.admin() ? `<div class="card"><div class="card-h">تنظیمات انبار</div><div class="card-b">
@@ -240,7 +243,7 @@ function renderSettings() {
 function openConnection() {
   const cfg = getConfig() || {};
   const m = modal('اتصال به Supabase', `
-    <p class="muted" style="margin-top:0;font-size:13px">همان Project URL و کلید عمومی سامانه مدارک (Project Settings → API).</p>
+    <p class="muted" style="margin-top:0;font-size:13px">از داشبورد Supabase → Project Settings → API: مقدار Project URL و کلید publishable (anon).</p>
     <div class="form-row"><label>Project URL</label><input id="cUrl" class="ltr" value="${esc(cfg.url)}" placeholder="https://xxxx.supabase.co"></div>
     <div class="form-row"><label>کلید عمومی (publishable / anon)</label><textarea id="cKey" class="ltr" rows="3" style="font-family:var(--mono);font-size:12px">${esc(cfg.key)}</textarea></div>`,
   { footer: `<button class="btn primary" id="cSave">ذخیره و اتصال</button>${cfg.url ? '<button class="btn danger" id="cClear">قطع اتصال (حالت محلی)</button>' : ''}<button class="btn" data-close>انصراف</button>` });

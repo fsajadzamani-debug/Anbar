@@ -24,7 +24,6 @@ const KIND_COLOR = { civil: '#b45309', material: '#0369a1', consumable: '#64748b
 const WH_KINDS = { central: 'انبار مرکزی', site: 'انبار کارگاه / پروژه', yard: 'یارد / محوطه', other: 'سایر' };
 const ROLE_FA = { admin: 'مدیر انبار', auditor: 'ناظر (مشاهده همه)', user: 'کاربر انبار', none: 'بدون دسترسی' };
 const MEM_FA = { keeper: 'انباردار', viewer: 'مشاهده' };
-const DM_ROLE_FA = { admin: 'مدیر', editor: 'ویرایشگر', viewer: 'مشاهده', pending: '—', disabled: 'غیرفعال' };
 const ASSET_ST = { in_stock: { fa: 'در انبار', c: '#15803d' }, assigned: { fa: 'تحویل شخص', c: '#1d4ed8' }, repair: { fa: 'در تعمیر', c: '#c98200' }, lost: { fa: 'مفقود', c: '#c93636' }, scrapped: { fa: 'اسقاط', c: '#64748b' } };
 
 /* ---------- دسترسی ---------- */
@@ -196,26 +195,30 @@ async function startApp() {
 }
 
 /* ============================ LOGIN ============================ */
-function renderLogin() {
+async function renderLogin(firstRun) {
   const showSetup = !(window.ANBAR_CONFIG || {}).supabaseUrl || location.hash === '#setup';
+  if (firstRun === undefined) { try { firstRun = !(await S.store.hasUsers()); } catch (e) { firstRun = false; } }
+  const nameI = I('<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="12" r="2.5"/><path d="M14 10h4M14 14h3"/>');
   const userI = I('<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>');
   const lockI = I('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.3"/>');
   document.body.innerHTML = `<div class="login-wrap"><div class="login">
     <div class="login-logo"><span>WMS</span></div>
     <h1>انباریار</h1>
     <div class="login-sub">سامانه انبارداری ${esc(S.settings.company || 'فولاد تکنیک')} · رسید · حواله · موجودی</div>
+    ${firstRun ? '<div class="login-links" style="justify-content:center;color:var(--accent)">اولین ورود: حساب مدیر سامانه را بسازید</div>' : ''}
     <form id="lf">
+      ${firstRun ? `<label class="neu-in">${nameI}<input name="full_name" placeholder="نام و نام خانوادگی" required></label>` : ''}
       <label class="neu-in">${userI}<input name="u" placeholder="نام کاربری" autocomplete="username" required dir="auto"></label>
       <label class="neu-in">${lockI}<input name="p" type="password" placeholder="رمز عبور" autocomplete="current-password" required minlength="6" dir="auto"></label>
-      <button class="neu-btn">ورود</button>
+      <button class="neu-btn">${firstRun ? 'ساخت حساب مدیر' : 'ورود'}</button>
     </form>
-    <div class="login-links" style="justify-content:center">ورود با همان نام کاربری و رمز سامانه مدارک</div>
+    ${firstRun ? '' : '<div class="login-links" style="justify-content:center">برای دریافت نام کاربری با مدیر انبار تماس بگیرید</div>'}
     ${showSetup ? `<div class="login-links" style="justify-content:center"><a href="#" id="cfgl">تنظیمات اتصال</a></div>` : ''}</div></div><div id="toasts"></div>`;
   if (showSetup) $('#cfgl').onclick = ev => { ev.preventDefault(); openConnection(); };
   $('#lf').onsubmit = async ev => {
     ev.preventDefault(); const f = ev.target;
     await busy(f.querySelector('button'), async () => {
-      S.user = await S.store.login(f.u.value, f.p.value);
+      S.user = firstRun ? await S.store.register(f.u.value, f.p.value, f.full_name.value) : await S.store.login(f.u.value, f.p.value);
       if (S.user.role === 'none' || (S.user.role === 'user' && !(S.user.members || []).length)) return renderPending();
       await startApp();
     });

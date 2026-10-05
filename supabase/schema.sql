@@ -1,27 +1,28 @@
 -- =====================================================================
 --  انباریار — سامانه انبارداری فولاد تکنیک — Supabase schema
---  روی همان پروژه Supabase «madarek» و با همان کاربران سامانه مدارک.
---  پیش‌نیاز: فایل schema.sql سامانه مدارک قبلاً اجرا شده باشد (جدول dm_profiles).
+--  پروژه Supabase مستقل با کاربران خودش (جدا از سامانه مدارک).
 --  این فایل را یک‌بار در Supabase → SQL Editor اجرا کنید (Run). اجرای دوباره بی‌خطر است.
---  همه جدول‌ها پیشوند wh_ دارند و به جدول‌های dm_ دست نمی‌زنند.
+--  همه جدول‌ها پیشوند wh_ دارند.
 -- =====================================================================
 
 create extension if not exists pgcrypto;
 
-do $$ begin
-  if to_regclass('public.dm_profiles') is null then
-    raise exception 'اول schema.sql سامانه مدارک را اجرا کنید (جدول dm_profiles پیدا نشد)';
-  end if;
-end $$;
+-- ---------- کاربران (ورود با نام کاربری) ----------
+create table if not exists public.wh_profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  username    text unique not null,
+  full_name   text,
+  created_at  timestamptz not null default now()
+);
 
--- ---------- نقش سراسری انبار (جدا از نقش مدارک) ----------
+-- ---------- نقش انبار ----------
 --  admin   = مدیر انبار: همه انبارها، تعریف کالا/انبار/کاربر، ویرایش و ابطال سند
 --  auditor = ناظر: مشاهده همه انبارها و گزارش‌ها، بدون ثبت
 --  user    = کاربر انبار: فقط انبارهایی که در wh_members به او داده شده
 --  none    = بدون دسترسی به انبار
---  مدیر سامانه مدارک (dm role = admin) خودکار مدیر انبار هم هست.
+--  اولین کاربری که ثبت‌نام می‌کند خودکار مدیر انبار می‌شود.
 create table if not exists public.wh_users (
-  user_id     uuid primary key references public.dm_profiles(id) on delete cascade,
+  user_id     uuid primary key references public.wh_profiles(id) on delete cascade,
   role        text not null default 'none' check (role in ('admin','auditor','user','none')),
   created_at  timestamptz not null default now()
 );
@@ -42,20 +43,40 @@ create table if not exists public.wh_warehouses (
 
 -- دسترسی هر کاربر به هر انبار: keeper = انباردار (ثبت)، viewer = فقط مشاهده
 create table if not exists public.wh_members (
-  user_id      uuid not null references public.dm_profiles(id) on delete cascade,
+  user_id      uuid not null references public.wh_profiles(id) on delete cascade,
   warehouse_id uuid not null references public.wh_warehouses(id) on delete cascade,
   role         text not null default 'keeper' check (role in ('keeper','viewer')),
   primary key (user_id, warehouse_id)
 );
 create index if not exists wh_members_wh_idx on public.wh_members(warehouse_id);
 
+-- ساخت خودکار پروفایل هنگام ثبت کاربر. اولین کاربر = مدیر انبار.
+create or replace function public.wh_handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  uname text := lower(coalesce(new.raw_user_meta_data->>'username', split_part(new.email,'@',1)));
+  first_user boolean := not exists (select 1 from public.wh_profiles);
+begin
+  insert into public.wh_profiles (id, username, full_name)
+  values (new.id, uname, coalesce(new.raw_user_meta_data->>'full_name', uname))
+  on conflict (id) do nothing;
+  insert into public.wh_users (user_id, role) values (new.id, case when first_user then 'admin' else 'none' end)
+  on conflict (user_id) do nothing;
+  return new;
+end $$;
+drop trigger if exists wh_on_auth_user_created on auth.users;
+create trigger wh_on_auth_user_created after insert on auth.users
+  for each row execute function public.wh_handle_new_user();
+
+-- آیا هنوز هیچ کاربری ساخته نشده؟ (برای نمایش «ساخت حساب مدیر» در صفحه ورود)
+create or replace function public.wh_has_users() returns boolean
+language sql stable security definer set search_path = public as $$ select exists (select 1 from public.wh_profiles) $$;
+
 -- ---------- توابع دسترسی (security definer تا در RLS حلقه نشود) ----------
 create or replace function public.wh_role() returns text
 language sql stable security definer set search_path = public as $$
   select case
     when auth.uid() is null then 'none'
-    when coalesce((select role from public.dm_profiles where id = auth.uid()), 'anon') = 'disabled' then 'none'
-    when (select role from public.dm_profiles where id = auth.uid()) = 'admin' then 'admin'
     else coalesce((select role from public.wh_users where user_id = auth.uid()), 'none')
   end;
 $$;
@@ -256,7 +277,7 @@ declare
   v_date  text := nullif(trim(coalesce(p->>'doc_date','')),'');
   v_force boolean := coalesce((p->>'force')::boolean, false) and public.wh_is_admin();
   v_old   public.wh_docs;
-  v_name  text := (select coalesce(full_name, username) from public.dm_profiles where id = auth.uid());
+  v_name  text := (select coalesce(full_name, username) from public.wh_profiles where id = auth.uid());
   v_items uuid[];
   v_old_items uuid[] := '{}';
   ln      jsonb;
@@ -326,7 +347,7 @@ end $$;
 -- ابطال سند (فقط مدیر انبار). موجودی برمی‌گردد؛ اگر منفی شود خطا می‌دهد مگر force.
 create or replace function public.wh_void_doc(doc uuid, reason text, force boolean default false) returns void
 language plpgsql security definer set search_path = public as $$
-declare d public.wh_docs; v_items uuid[]; v_name text := (select coalesce(full_name, username) from public.dm_profiles where id = auth.uid());
+declare d public.wh_docs; v_items uuid[]; v_name text := (select coalesce(full_name, username) from public.wh_profiles where id = auth.uid());
 begin
   if not public.wh_is_admin() then raise exception 'ابطال سند فقط توسط مدیر انبار ممکن است'; end if;
   select * into d from public.wh_docs where id = doc for update;
@@ -343,15 +364,14 @@ begin
 end $$;
 
 -- ---------- مدیریت کاربران انبار ----------
--- فهرست کاربران (همان حساب‌های سامانه مدارک) + نقش انبار + انبارهای مجاز
+-- فهرست کاربران + نقش انبار + انبارهای مجاز
 create or replace function public.wh_list_users() returns table (
-  id uuid, username text, full_name text, dm_role text, wh_role text, members jsonb, created_at timestamptz)
+  id uuid, username text, full_name text, wh_role text, members jsonb, created_at timestamptz)
 language sql stable security definer set search_path = public as $$
-  select p.id, p.username, p.full_name, p.role,
-         case when p.role = 'admin' then 'admin' else coalesce(u.role, 'none') end,
+  select p.id, p.username, p.full_name, coalesce(u.role, 'none'),
          coalesce((select jsonb_agg(jsonb_build_object('warehouse_id', m.warehouse_id, 'role', m.role)) from public.wh_members m where m.user_id = p.id), '[]'::jsonb),
          p.created_at
-    from public.dm_profiles p left join public.wh_users u on u.user_id = p.id
+    from public.wh_profiles p left join public.wh_users u on u.user_id = p.id
    where public.wh_is_admin()
    order by p.created_at;
 $$;
@@ -362,7 +382,7 @@ declare m jsonb;
 begin
   if not public.wh_is_admin() then raise exception 'فقط مدیر انبار'; end if;
   if new_role not in ('admin','auditor','user','none') then raise exception 'نقش نامعتبر'; end if;
-  if target = auth.uid() and new_role <> 'admin' and (select role from public.dm_profiles where id = auth.uid()) <> 'admin' then
+  if target = auth.uid() and new_role <> 'admin' then
     raise exception 'نمی‌توانید نقش مدیر را از خودتان بگیرید';
   end if;
   insert into public.wh_users (user_id, role) values (target, new_role)
@@ -374,26 +394,32 @@ begin
     on conflict do nothing;
   end loop;
   insert into public.wh_log (entity, entity_id, label, action, details, username)
-  values ('user', target::text, (select username from public.dm_profiles where id = target), 'role', new_role,
-          (select coalesce(full_name, username) from public.dm_profiles where id = auth.uid()));
+  values ('user', target::text, (select username from public.wh_profiles where id = target), 'role', new_role,
+          (select coalesce(full_name, username) from public.wh_profiles where id = auth.uid()));
 end $$;
 
--- تغییر رمز توسط مدیر انبار — فقط برای کاربرانی که در سامانه مدارک نقش ندارند
--- (رمز کاربران مدارک را فقط مدیر مدارک عوض می‌کند)
+-- تغییر رمز و حذف کاربر توسط مدیر انبار
 create or replace function public.wh_admin_set_password(target uuid, new_password text) returns void
 language plpgsql security definer set search_path = public, extensions, auth as $$
 begin
   if not public.wh_is_admin() then raise exception 'فقط مدیر انبار'; end if;
   if length(new_password) < 6 then raise exception 'رمز باید حداقل ۶ کاراکتر باشد'; end if;
-  if (select role from public.dm_profiles where id = auth.uid()) <> 'admin'
-     and (select role from public.dm_profiles where id = target) in ('admin','editor','viewer') then
-    raise exception 'رمز کاربران سامانه مدارک را فقط مدیر سامانه مدارک تغییر می‌دهد';
-  end if;
   update auth.users set encrypted_password = crypt(new_password, gen_salt('bf')) where id = target;
+end $$;
+
+create or replace function public.wh_admin_delete_user(target uuid) returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.wh_is_admin() then raise exception 'فقط مدیر انبار'; end if;
+  if target = auth.uid() then raise exception 'نمی‌توانید حساب خودتان را حذف کنید'; end if;
+  delete from auth.users where id = target;
 end $$;
 
 -- ---------- دسترسی API ----------
 grant usage on schema public to anon, authenticated;
+grant select on public.wh_profiles to authenticated;
+grant update (full_name) on public.wh_profiles to authenticated;
+grant execute on function public.wh_has_users() to anon, authenticated;
 grant select, insert, update, delete on public.wh_users, public.wh_warehouses, public.wh_members, public.wh_items,
   public.wh_docs, public.wh_lines, public.wh_assets, public.wh_asset_log, public.wh_log, public.wh_settings to authenticated;
 grant select on public.wh_moves, public.wh_stock to authenticated;
@@ -401,11 +427,12 @@ grant usage, select on sequence public.wh_log_id_seq, public.wh_asset_log_id_seq
 grant execute on function public.wh_role(), public.wh_is_admin(), public.wh_active(), public.wh_can_see(uuid), public.wh_can_write(uuid),
   public.wh_can_write_any(), public.wh_balance(uuid, uuid), public.wh_next_no(uuid, text, text) to authenticated;
 revoke all on function public.wh_save_doc(jsonb), public.wh_void_doc(uuid, text, boolean), public.wh_list_users(),
-  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_check_negative(uuid, uuid[]) from public, anon;
+  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_check_negative(uuid, uuid[]) from public, anon;
 grant execute on function public.wh_save_doc(jsonb), public.wh_void_doc(uuid, text, boolean), public.wh_list_users(),
-  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_check_negative(uuid, uuid[]) to authenticated;
+  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_check_negative(uuid, uuid[]) to authenticated;
 
 -- ---------- RLS ----------
+alter table public.wh_profiles   enable row level security;
 alter table public.wh_users      enable row level security;
 alter table public.wh_warehouses enable row level security;
 alter table public.wh_members    enable row level security;
@@ -422,6 +449,10 @@ do $$ declare p record; begin
     execute format('drop policy if exists %I on public.%I', p.policyname, p.tablename);
   end loop;
 end $$;
+
+-- پروفایل: هر کس خودش، کاربران فعال همه را (برای نام‌ها)؛ هر کس فقط نام نمایشی خودش را عوض می‌کند
+create policy wh_profiles_sel on public.wh_profiles for select using (id = auth.uid() or public.wh_active());
+create policy wh_profiles_upd on public.wh_profiles for update using (id = auth.uid() or public.wh_is_admin()) with check (id = auth.uid() or public.wh_is_admin());
 
 -- نقش و دسترسی‌ها: هر کس مال خودش را می‌بیند؛ تغییر فقط از طریق تابع مدیر
 create policy wh_users_sel on public.wh_users for select using (user_id = auth.uid() or public.wh_is_admin());

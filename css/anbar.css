@@ -193,3 +193,4 @@ table.lines td[data-u] { font-size: 12.5px; text-align: center; }
 .admin-nav a svg { color: var(--accent); }
 .nav a.logout { color: var(--danger); }
 .nav a.logout svg { color: var(--danger); }
+.move-box label { display: flex; align-items: center; gap: 6px; } .move-box label svg { width: 15px; height: 15px; color: var(--accent); }

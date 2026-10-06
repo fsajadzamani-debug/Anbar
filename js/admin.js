@@ -76,10 +76,10 @@ async function renderUsers() {
   $('#view').innerHTML = `
     <div class="page-head"><div><h1>کاربران و دسترسی انبار</h1><div class="sub">${users.length} کاربر</div></div>
       <div class="actions"><button class="btn primary" id="add">${ICON.plus}کاربر جدید</button></div></div>
-    <div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>نام</th><th>نام کاربری</th><th>نقش</th><th>انبارها</th></tr></thead><tbody>
+    <div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>نام</th><th>نام کاربری</th><th>نقش</th><th>انبارها</th><th></th></tr></thead><tbody>
       ${users.map(u => `<tr data-id="${u.id}" class="${u.wh_role === 'none' ? 'inactive' : ''}"><td><b>${esc(u.full_name || '')}</b></td><td class="mono">${esc(u.username)}</td>
         <td>${u.wh_role === 'admin' ? '<b style="color:var(--accent)">مدیر انبار</b>' : esc(ROLE_FA[u.wh_role] || u.wh_role)}${u.id === S.user.id ? ' <small class="muted">(شما)</small>' : ''}</td>
-        <td style="font-size:12.5px">${u.wh_role === 'user' ? (u.members || []).map(m => `<span class="mini-pill ${m.role}">${esc(whName(m.warehouse_id))} · ${MEM_FA[m.role]}</span>`).join(' ') || '<span class="neg">هیچ انباری</span>' : u.wh_role === 'none' ? '' : '<span class="muted">همه انبارها</span>'}</td></tr>`).join('')}
+        <td style="font-size:12.5px">${u.wh_role === 'user' ? (u.members || []).map(m => `<span class="mini-pill ${m.role}">${esc(whName(m.warehouse_id))} · ${MEM_FA[m.role]}</span>`).join(' ') || '<span class="neg">هیچ انباری</span>' : u.wh_role === 'none' ? '' : '<span class="muted">همه انبارها</span>'}</td><td><span class="btn sm ghost">${ICON.edit}ویرایش</span></td></tr>`).join('')}
     </tbody></table></div></div>
     <div class="card" style="margin-top:14px"><div class="card-b muted" style="font-size:13px;line-height:2.1">
       <b>مدیر انبار:</b> همه انبارها، تعریف انبار/کالا/کاربر، ویرایش و ابطال سند · <b>ناظر:</b> مشاهده و گزارش همه انبارها بدون ثبت ·
@@ -92,42 +92,46 @@ async function renderUsers() {
 function userModal(u, users) {
   const isNew = !u; u = u || { wh_role: 'user', members: [] };
   const mem = Object.fromEntries((u.members || []).map(m => [m.warehouse_id, m.role]));
-  const locked = u.id === S.user.id;
-  const m = modal(isNew ? 'کاربر جدید' : 'دسترسی ' + esc(u.full_name || u.username), `
-    ${isNew ? `<div class="fgrid" style="--cols:2;margin-bottom:14px">
-      <div class="fld"><label class="l">نام و نام خانوادگی *</label><input id="uName" dir="auto"></div>
-      <div class="fld"><label class="l">نام کاربری * <small>انگلیسی</small></label><input id="uUser" class="mono" dir="ltr"></div>
-      <div class="fld"><label class="l">رمز عبور * <small>حداقل ۶</small></label><input id="uPw" class="mono" dir="ltr"></div></div>
-` :
-      `<p class="muted" style="margin-top:0">نام کاربری: <b class="mono">${esc(u.username)}</b></p>`}
-    ${locked ? '<div class="warn-box card">این حساب خودتان است؛ نقش خودتان را نمی‌توانید تغییر دهید. رمزتان را از «تنظیمات» عوض کنید.</div>' : `
-    <div class="form-row"><label>نقش در انبار</label><select id="uRole">${Object.entries(ROLE_FA).map(([k, v]) => `<option value="${k}" ${u.wh_role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div id="memBox" class="${u.wh_role === 'user' ? '' : 'hidden'}"><label style="font-size:12.5px;font-weight:600">انبارهای مجاز</label>
+  const self = u.id === S.user.id;
+  const m = modal(isNew ? 'کاربر جدید' : 'ویرایش کاربر ' + esc(u.full_name || u.username), `
+    <div class="fgrid" style="--cols:2;margin-bottom:6px">
+      <div class="fld"><label class="l">نام و نام خانوادگی *</label><input id="uName" value="${esc(u.full_name || '')}" dir="auto"></div>
+      <div class="fld"><label class="l">نام کاربری * <small>انگلیسی</small></label><input id="uUser" value="${esc(u.username || '')}" class="mono" dir="ltr"></div>
+      <div class="fld"><label class="l">${isNew ? 'رمز عبور *' : 'رمز جدید'} <small>${isNew ? 'حداقل ۶' : 'خالی = بدون تغییر'}</small></label><input id="uPw" class="mono" dir="ltr"></div>
+    </div>
+    ${self ? '<div class="warn-box card">این حساب خودتان است؛ نقش و انبار خودتان را نمی‌توانید تغییر دهید.</div>' : `
+    <div class="form-row"><label>نقش</label><select id="uRole">${Object.entries(ROLE_FA).map(([k, v]) => `<option value="${k}" ${u.wh_role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div id="memBox" class="${u.wh_role === 'user' ? '' : 'hidden'}">
+      <div class="form-row move-box"><label>${ICON.swap}${isNew ? 'انباردارِ انبار' : 'جابه‌جایی: انباردارِ فقط این انبار شود'}</label>
+        <select id="uMove"><option value="">— انتخاب انبار —</option>${S.warehouses.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('')}</select></div>
+      <label style="font-size:12.5px;font-weight:600">یا دسترسی به چند انبار</label>
       <div class="mem-list">${S.warehouses.map(w => `<div class="mem-row"><span>${esc(w.name)}${w.active === false ? ' <small class="muted">(غیرفعال)</small>' : ''}</span>
-        <select data-w="${w.id}"><option value="">—</option><option value="keeper" ${mem[w.id] === 'keeper' ? 'selected' : ''}>انباردار</option><option value="viewer" ${mem[w.id] === 'viewer' ? 'selected' : ''}>مشاهده</option></select></div>`).join('') || '<div class="muted">اول انبارها را تعریف کنید</div>'}</div></div>`}
-    ${!isNew && !locked ? `<div class="form-row" style="margin-top:14px"><label>تغییر رمز عبور</label><div style="display:flex;gap:6px"><input id="uNewPw" class="mono" dir="ltr" style="flex:1" placeholder="رمز جدید"><button class="btn" id="uSetPw">${ICON.key}تغییر رمز</button></div></div>` : ''}`,
-  { footer: locked && !isNew ? '<button class="btn" data-close>بستن</button>' : `<button class="btn primary" id="uSave">${isNew ? 'ساخت کاربر' : 'ذخیره دسترسی'}</button>${!isNew ? `<button class="btn danger" id="uDel">${ICON.trash}حذف کاربر</button>` : ''}<button class="btn" data-close>انصراف</button>` });
+        <select data-w="${w.id}"><option value="">—</option><option value="keeper" ${mem[w.id] === 'keeper' ? 'selected' : ''}>انباردار</option><option value="viewer" ${mem[w.id] === 'viewer' ? 'selected' : ''}>مشاهده</option></select></div>`).join('') || '<div class="muted">اول انبارها را تعریف کنید</div>'}</div></div>`}`,
+  { footer: `<button class="btn primary" id="uSave">${isNew ? 'ساخت کاربر' : 'ذخیره تغییرات'}</button>${!isNew && !self ? `<button class="btn danger" id="uDel">${ICON.trash}حذف کاربر</button>` : ''}<button class="btn" data-close>انصراف</button>` });
+  if ($('#uRole', m.el)) $('#uRole', m.el).onchange = ev => $('#memBox', m.el).classList.toggle('hidden', ev.target.value !== 'user');
+  if ($('#uMove', m.el)) $('#uMove', m.el).onchange = ev => { const w = ev.target.value; if (!w) return; $$('[data-w]', m.el).forEach(s => s.value = s.dataset.w === w ? 'keeper' : ''); };
+  const members = () => $$('[data-w]', m.el).filter(s => s.value).map(s => ({ warehouse_id: s.dataset.w, role: s.value }));
   if ($('#uDel', m.el)) $('#uDel', m.el).onclick = async () => {
     if (!(await confirmBox(`حساب «${esc(u.full_name || u.username)}» حذف شود؟ اسنادی که ثبت کرده باقی می‌مانند.`, 'حذف کاربر'))) return;
     await busy(null, async () => { await S.store.deleteUser(u.id); m.close(); toast('حذف شد', 'ok'); renderUsers(); });
   };
-  if ($('#uRole', m.el)) $('#uRole', m.el).onchange = ev => $('#memBox', m.el).classList.toggle('hidden', ev.target.value !== 'user');
-  const members = () => $$('[data-w]', m.el).filter(s => s.value).map(s => ({ warehouse_id: s.dataset.w, role: s.value }));
-  if ($('#uSave', m.el)) $('#uSave', m.el).onclick = ev => busy(ev.target, async () => {
-    let id = u.id;
-    const role = $('#uRole', m.el)?.value || 'admin';
+  $('#uSave', m.el).onclick = ev => busy(ev.target, async () => {
+    const name = $('#uName', m.el).value.trim(), uname = $('#uUser', m.el).value.trim().toLowerCase(), pw = $('#uPw', m.el).value;
+    if (!/^[a-z0-9._-]{3,}$/.test(uname)) throw new Error('نام کاربری باید انگلیسی و حداقل ۳ حرف باشد');
+    if (users.some(x => x.username === uname && x.id !== u.id)) throw new Error('این نام کاربری قبلاً ثبت شده');
+    if ((isNew || pw) && pw.length < 6) throw new Error('رمز باید حداقل ۶ کاراکتر باشد');
+    const role = self ? null : $('#uRole', m.el).value;
     if (role === 'user' && !members().length) throw new Error('حداقل یک انبار برای کاربر انتخاب کنید');
-    if (isNew) {
-      const uname = $('#uUser', m.el).value.trim(), pw = $('#uPw', m.el).value, name = $('#uName', m.el).value.trim();
-      if (!/^[a-z0-9._-]{3,}$/i.test(uname)) throw new Error('نام کاربری باید انگلیسی و حداقل ۳ حرف باشد');
-      if (pw.length < 6) throw new Error('رمز باید حداقل ۶ کاراکتر باشد');
-      if (users.some(x => x.username === uname.toLowerCase())) throw new Error('این نام کاربری وجود دارد؛ از فهرست روی آن بزنید');
-      id = (await S.store.createUser({ username: uname, password: pw, full_name: name })).id;
+    let id = u.id;
+    if (isNew) id = (await S.store.createUser({ username: uname, password: pw, full_name: name })).id;
+    else {
+      if (uname !== u.username || name !== (u.full_name || '')) await S.store.renameUser(id, uname, name);
+      if (pw) await S.store.setPassword(id, pw);
     }
-    await S.store.setUserAccess(id, role, role === 'user' ? members() : []);
-    m.close(); toast('ذخیره شد', 'ok'); renderUsers();
+    if (role) await S.store.setUserAccess(id, role, role === 'user' ? members() : []);
+    if (self) { S.user.full_name = name; S.user.username = uname; refreshNav(); }
+    m.close(); toast(pw && !isNew ? 'ذخیره شد · رمز تغییر کرد' : 'ذخیره شد', 'ok'); renderUsers();
   });
-  if ($('#uSetPw', m.el)) $('#uSetPw', m.el).onclick = ev => busy(ev.target, async () => { await S.store.setPassword(u.id, $('#uNewPw', m.el).value); $('#uNewPw', m.el).value = ''; toast('رمز تغییر کرد', 'ok'); });
 }
 
 /* ============================ ورود از اکسل ============================ */

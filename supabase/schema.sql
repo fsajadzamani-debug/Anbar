@@ -415,6 +415,18 @@ begin
   delete from auth.users where id = target;
 end $$;
 
+-- تغییر نام کاربری و نام نمایشی توسط مدیر
+create or replace function public.wh_admin_rename_user(target uuid, new_username text, new_full_name text) returns void
+language plpgsql security definer set search_path = public, auth as $$
+declare u text := lower(trim(coalesce(new_username, '')));
+begin
+  if not public.wh_is_admin() then raise exception 'فقط مدیر انبار'; end if;
+  if u !~ '^[a-z0-9._-]{3,}$' then raise exception 'نام کاربری باید انگلیسی و حداقل ۳ حرف باشد'; end if;
+  if exists (select 1 from public.wh_profiles where username = u and id <> target) then raise exception 'این نام کاربری قبلاً ثبت شده'; end if;
+  update public.wh_profiles set username = u, full_name = coalesce(nullif(trim(new_full_name), ''), full_name) where id = target;
+  update auth.users set email = u || '@anbaryar.app' where id = target;
+end $$;
+
 -- ---------- دسترسی API ----------
 grant usage on schema public to anon, authenticated;
 grant select on public.wh_profiles to authenticated;
@@ -427,9 +439,9 @@ grant usage, select on sequence public.wh_log_id_seq, public.wh_asset_log_id_seq
 grant execute on function public.wh_role(), public.wh_is_admin(), public.wh_active(), public.wh_can_see(uuid), public.wh_can_write(uuid),
   public.wh_can_write_any(), public.wh_balance(uuid, uuid), public.wh_next_no(uuid, text, text) to authenticated;
 revoke all on function public.wh_save_doc(jsonb), public.wh_void_doc(uuid, text, boolean), public.wh_list_users(),
-  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_check_negative(uuid, uuid[]) from public, anon;
+  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_admin_rename_user(uuid, text, text), public.wh_check_negative(uuid, uuid[]) from public, anon;
 grant execute on function public.wh_save_doc(jsonb), public.wh_void_doc(uuid, text, boolean), public.wh_list_users(),
-  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_check_negative(uuid, uuid[]) to authenticated;
+  public.wh_admin_set_user(uuid, text, jsonb), public.wh_admin_set_password(uuid, text), public.wh_admin_delete_user(uuid), public.wh_admin_rename_user(uuid, text, text), public.wh_check_negative(uuid, uuid[]) to authenticated;
 
 -- ---------- RLS ----------
 alter table public.wh_profiles   enable row level security;

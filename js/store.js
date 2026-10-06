@@ -82,6 +82,10 @@ class SupaStore {
   async setUserAccess(id, role, members) { this._check(await this.sb.rpc('wh_admin_set_user', { target: id, new_role: role, members })); }
   async setPassword(id, pw) { this._check(await this.sb.rpc('wh_admin_set_password', { target: id, new_password: pw })); }
   async deleteUser(id) { this._check(await this.sb.rpc('wh_admin_delete_user', { target: id })); }
+  async renameUser(id, username, full_name) {
+    const r = await this.sb.rpc('wh_admin_rename_user', { target: id, new_username: username, new_full_name: full_name });
+    if (r.error) throw new Error(/wh_admin_rename_user|schema cache|function/i.test(r.error.message) ? 'برای تغییر نام کاربری، فایل supabase/patch-rename-user.sql را یک‌بار در Supabase اجرا کنید' : errFa(r.error.message));
+  }
   async createUser({ username, password, full_name }) {
     const tmp = supabase.createClient(this.cfg.url, this.cfg.key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'wh-tmp' } });
     const uname = username.trim().toLowerCase();
@@ -209,6 +213,7 @@ class LocalStore {
   async updateMyName(n) { this.user.full_name = n; }
   async listUsers() { return [{ id: 'local', username: 'admin', full_name: 'مدیر (محلی)', wh_role: 'admin', members: [] }]; }
   async deleteUser() { throw new Error('در حالت محلی فعال نیست'); }
+  async renameUser() { throw new Error('در حالت محلی فعال نیست'); }
   async setUserAccess() { throw new Error('در حالت محلی مدیریت کاربران فعال نیست'); }
   async setPassword() { throw new Error('در حالت محلی فعال نیست'); }
   async createUser() { throw new Error('در حالت محلی ساخت کاربر فعال نیست؛ ابتدا اتصال Supabase را تنظیم کنید'); }

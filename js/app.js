@@ -81,6 +81,7 @@ const ICON = {
   send: I('<path d="M21 3 3 11l7 2 2 7z"/><path d="m10 13 5-5"/>'),
   eye: I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   eyeOff: I('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+  bell: I('<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
   lock: I('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
 };
 const DT_ICON = { receipt: ICON.in, issue: ICON.out, transfer: ICON.swap, return: ICON.ret, adjust: ICON.adj };
@@ -336,7 +337,7 @@ function refreshNav() {
     </a></div>`;
   renderTabs();
   $$('#side [data-all]').forEach(x => x.addEventListener('click', () => { if (S.whId !== 'all') { S.whId = 'all'; localStorage.setItem('wh_sel', 'all'); } }));
-  $('#navLogout').onclick = async ev => { ev.preventDefault(); await S.store.logout(); location.hash = ''; location.reload(); };
+  $('#navLogout').onclick = async ev => { ev.preventDefault(); await signOut(); };
   $$('#side a').forEach(x => x.addEventListener('click', () => $('#shell').classList.remove('nav-open')));
 }
 

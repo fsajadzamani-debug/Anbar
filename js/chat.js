@@ -36,6 +36,7 @@ async function initChat() {
     CHAT.users = users; CHAT.summary = summary; CHAT.ready = true; CHAT.err = '';
     if (can.admin()) CHAT.muted = new Set(await S.store.mutedList());
     S.user.muted = await S.store.amMuted();
+    PUSH.refresh();
     S.store.presence(S.user.id, set => { CHAT.online = set; if (parseHash().view === 'chat') drawRooms(); });
   } catch (e) { CHAT.err = e.message; }
   refreshNav();
@@ -44,7 +45,7 @@ function onChatEvent(p) {
   const n = p.new, o = p.old;
   if (p.eventType === 'INSERT') {
     if (!CHAT.summary.some(x => x.id === n.id)) CHAT.summary.unshift(n);
-    if (n.room === CHAT.room && parseHash().view === 'chat') {
+    if (n.room && n.room === CHAT.room && parseHash().view === 'chat') {
       if (!CHAT.msgs.some(x => x.id === n.id)) CHAT.msgs.push(n);
       setSeen(n.room, n.id); drawMessages(true);
     } else if (n.user_id !== S.user.id) {
@@ -127,16 +128,20 @@ async function openRoom(room) {
       <button class="icon-btn back-btn" id="chatBack">${ICON.back}</button>
       ${room === GENERAL ? groupAvatar() : avatar(peer, title, CHAT.online.has(peer), true)}
       <div class="ch-t"><b>${esc(title)}</b><small>${sub}</small></div>
+      <button class="btn sm" id="pushBtn"></button>
       ${can.admin() && peer ? `<button class="btn sm ${CHAT.muted.has(peer) ? 'danger' : ''}" id="muteBtn">${ICON.mute}${CHAT.muted.has(peer) ? 'برداشتن سکوت' : 'سکوت کاربر'}</button>` : ''}
       ${can.admin() && room === GENERAL ? `<button class="btn sm" id="membersBtn">${ICON.users}اعضا و سکوت</button>` : ''}
     </div>
     <div class="msgs" id="msgs"><div class="muted" style="text-align:center;padding:30px">…</div></div>
     <div class="composer" id="composer"></div>`;
   $('#chatBack').onclick = () => { $('.chat-app').classList.remove('in-room'); CHAT.room = null; drawRooms(); };
+  pushButton($('#pushBtn'));
   if ($('#muteBtn')) $('#muteBtn').onclick = () => toggleMute(peer);
   if ($('#membersBtn')) $('#membersBtn').onclick = membersModal;
-  try { CHAT.msgs = await S.store.listChat(room); } catch (e) { $('#msgs').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  if (CHAT.room !== room) return;
+  CHAT.msgs = [];
+  let list; try { list = await S.store.listChat(room); } catch (e) { if (CHAT.room === room) $('#msgs').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (CHAT.room !== room) return;   // کاربر در این فاصله گفتگوی دیگری را باز کرده
+  CHAT.msgs = list.filter(m => m.room === room);
   if (CHAT.msgs.length) setSeen(room, CHAT.msgs.at(-1).id);
   drawMessages(true); drawComposer(); drawRooms(); refreshNav();
 }
@@ -144,6 +149,7 @@ function drawMessages(toBottom) {
   const box = $('#msgs'); if (!box) return;
   const near = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
   let lastDay = '', lastUser = '';
+  CHAT.msgs = CHAT.msgs.filter(m => m.room === CHAT.room);   // هر گفتگو فقط پیام‌های خودش
   box.innerHTML = CHAT.msgs.length ? CHAT.msgs.map(m => {
     const mine = m.user_id === S.user.id, d = dayOf(m.created_at);
     const sep = d !== lastDay ? `<div class="day-sep"><span>${d === Jalali.today() ? 'امروز' : d}</span></div>` : '';
@@ -180,7 +186,7 @@ function drawComposer() {
     const btn = $('#sendBtn'); btn.disabled = true;
     try {
       if (CHAT.editing) { const u = await S.store.editChat(CHAT.editing, body); const i = CHAT.msgs.findIndex(x => x.id === u.id); if (i >= 0) CHAT.msgs[i] = u; CHAT.editing = null; }
-      else { const m = await S.store.sendChat(CHAT.room, body, CHAT.replyTo); if (!CHAT.msgs.some(x => x.id === m.id)) CHAT.msgs.push(m); if (!CHAT.summary.some(x => x.id === m.id)) CHAT.summary.unshift(m); setSeen(CHAT.room, m.id); CHAT.replyTo = null; }
+      else { const room = CHAT.room; const m = await S.store.sendChat(room, body, CHAT.replyTo); if (CHAT.room === room && !CHAT.msgs.some(x => x.id === m.id)) CHAT.msgs.push(m); if (!CHAT.summary.some(x => x.id === m.id)) CHAT.summary.unshift(m); setSeen(CHAT.room, m.id); CHAT.replyTo = null; }
       drawMessages(true); drawComposer(); drawRooms(); $('#cmpIn')?.focus();
     } catch (e) { toast(e.message, 'err'); if (/سکوت/.test(e.message)) { S.user.muted = true; drawComposer(); } }
     finally { if (btn.isConnected) btn.disabled = false; }

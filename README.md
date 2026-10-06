@@ -67,3 +67,14 @@ desktop/                       نسخه ویندوز (Electron)
 
 **منطق موجودی:** موجودی ذخیره نمی‌شود، از ردیف اسناد معتبر محاسبه می‌شود (ویو `wh_stock` / `wh_moves`)؛
 رسید و برگشتی (+)، حواله (−)، انتقال (− مبدأ / + مقصد)، تعدیل (±). سند باطل‌شده در موجودی اثری ندارد.
+
+---
+
+## اعلان پیام‌های چت (حتی وقتی سایت بسته است)
+1. **Supabase → Edge Functions → Deploy a new function → Via Editor**؛ نام تابع را دقیقاً `push` بگذارید،
+   محتوای [`supabase/functions/push/index.ts`](supabase/functions/push/index.ts) را جایگزین کنید و **Deploy** بزنید.
+2. در صفحه همان تابع → **Details / Settings**: گزینه **Enforce JWT verification** را **خاموش** کنید و ذخیره کنید.
+3. فایل [`supabase/patch-push.sql`](supabase/patch-push.sql) را یک‌بار در SQL Editor اجرا کنید.
+4. هر کاربر روی هر دستگاه: **چت سازمانی** یا **تنظیمات → روشن کردن اعلان** و اجازه دادن به مرورگر.
+
+نکته: آیفون فقط وقتی سایت با «Add to Home Screen» نصب شده باشد اعلان می‌گیرد. کلیدهای اعلان (VAPID) خودکار ساخته و در جدول محرمانه `wh_private` نگه داشته می‌شوند.

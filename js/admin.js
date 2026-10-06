@@ -186,6 +186,9 @@ function renderSettings() {
         ${can.admin() ? `<button class="btn" id="cfgBtn">${ICON.settings}تنظیم اتصال</button>
         ${cfg ? `<div class="form-row" style="margin-top:14px"><label>لینک دعوت برای همکاران</label><div style="display:flex;gap:6px"><input id="inv" readonly class="ltr" value="${esc(inviteLink(cfg))}" style="flex:1;font-size:12px"><button class="btn" id="cpInv">${ICON.copy}</button></div></div>` : ''}` : ''}
       </div></div>
+      <div class="card"><div class="card-h">${ICON.bell}اعلان پیام‌های چت</div><div class="card-b">
+        <p class="muted" style="margin-top:0;font-size:13px">با روشن کردن، وقتی برایتان پیام خصوصی یا پیام گروه بیاید، حتی اگر سایت بسته باشد روی همین دستگاه اعلان می‌آید. روی هر دستگاه (گوشی/کامپیوتر) جدا روشن کنید.</p>
+        <button class="btn sm" id="pushSet"></button></div></div>
       <div class="card"><div class="card-h">پشتیبان‌گیری</div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="bk">${ICON.download}پشتیبان کامل (JSON)</button>
         <button class="btn" id="xAll">${ICON.excel}اکسل موجودی همه انبارها</button>
@@ -201,9 +204,10 @@ function renderSettings() {
     toast('عکس پروفایل ذخیره شد', 'ok'); refreshNav(); renderSettings();
   });
   if ($('#avDel')) $('#avDel').onclick = () => busy(null, async () => { await S.store.removeAvatar(); const me = CHAT.users.find(u => u.id === S.user.id); if (me) me.avatar_url = null; refreshNav(); renderSettings(); });
+  pushButton($('#pushSet'));
   $('#saveName').onclick = ev => busy(ev.target, async () => { await S.store.updateMyName($('#myName').value.trim()); toast('ذخیره شد', 'ok'); renderShell(); route(); });
   if ($('#savePw')) $('#savePw').onclick = ev => busy(ev.target, async () => { await S.store.changePassword($('#myPw').value); toast('رمز تغییر کرد', 'ok'); $('#myPw').value = ''; });
-  if ($('#logout')) $('#logout').onclick = async () => { await S.store.logout(); location.hash = ''; location.reload(); };
+  if ($('#logout')) $('#logout').onclick = async () => { await signOut(); };
   if ($('#saveComp')) $('#saveComp').onclick = ev => busy(ev.target, async () => { const v = $('#sComp').value.trim(); await S.store.saveSetting('company', v); S.settings.company = v; refreshNav(); toast('ذخیره شد', 'ok'); });
   if ($('#sNeg')) $('#sNeg').onchange = ev => busy(null, async () => { await S.store.saveSetting('allow_negative', ev.target.checked); S.settings.allow_negative = ev.target.checked; toast('ذخیره شد', 'ok'); });
   if ($('#cfgBtn')) $('#cfgBtn').onclick = openConnection;

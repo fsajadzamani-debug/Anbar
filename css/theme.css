@@ -253,3 +253,7 @@ html, body { overflow-x: hidden; }
 .prof-pic { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
 .prof-pic .av { width: 72px; height: 72px; font-size: 22px; }
 .prof-pic b { display: block; } .prof-pic small { display: block; font-size: 12px; }
+.btn.on-push { color: #16a34a; }
+.btn.on-push svg { color: #16a34a; }
+.card-h > svg { width: 17px; height: 17px; color: var(--accent); }
+@media (max-width: 860px) { #pushBtn span { display: none; } }

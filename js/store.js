@@ -219,6 +219,17 @@ class SupaStore {
   async mutedList() { const r = await this.sb.rpc('wh_muted_list'); return r.error ? [] : r.data.map(x => x.wh_muted_list || x); }
   async setMute(id, mute) { this._check(await this.sb.rpc('wh_admin_set_mute', { target: id, mute })); }
   async amMuted() { const r = await this.sb.rpc('wh_is_muted'); return !r.error && r.data === true; }
+  async pushPublicKey() {
+    const r = await fetch(this.cfg.url + '/functions/v1/push', { headers: { apikey: this.cfg.key, Authorization: 'Bearer ' + this.cfg.key } });
+    if (!r.ok) throw new Error(r.status === 404 ? 'تابع اعلان (push) هنوز در Supabase ساخته نشده — راهنمای README' : 'خطای سرور اعلان: ' + r.status);
+    return (await r.json()).publicKey;
+  }
+  async savePushSub(sub) {
+    const j = sub.toJSON();
+    const r = await this.sb.from('wh_push_subs').upsert({ endpoint: j.endpoint, user_id: this.user.id, p256dh: j.keys.p256dh, auth: j.keys.auth, ua: navigator.userAgent.slice(0, 200) });
+    if (r.error) throw new Error(/wh_push_subs|schema cache/i.test(r.error.message) ? 'جدول اعلان ساخته نشده — فایل supabase/patch-push.sql را اجرا کنید' : r.error.message);
+  }
+  async deletePushSub(endpoint) { await this.sb.from('wh_push_subs').delete().eq('endpoint', endpoint); }
   presence(me, onSync) {   // وضعیت آنلاین کاربران
     this.pres = this.sb.channel('wh-presence', { config: { presence: { key: me } } });
     this.pres.on('presence', { event: 'sync' }, () => onSync(new Set(Object.keys(this.pres.presenceState()))))
@@ -396,5 +407,8 @@ class LocalStore {
   async setMute(id, mute) { const l = new Set(this._get('muted', [])); mute ? l.add(id) : l.delete(id); this._set('muted', [...l]); }
   async amMuted() { return false; }
   presence(me, onSync) { onSync(new Set([me, 'u2'])); }
+  async pushPublicKey() { throw new Error('اعلان در حالت آزمایشی محلی فعال نیست'); }
+  async savePushSub() { }
+  async deletePushSub() { }
   subscribe(cb) { this._cb = cb; }
 }

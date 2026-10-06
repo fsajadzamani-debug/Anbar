@@ -72,14 +72,14 @@ def demo():
 
 
 seed = f'<script>window.ANBAR_DEMO_SEED = {json.dumps(demo(), ensure_ascii=False)};</script>' if a.demo else ''
-files = (['lib/supabase.js'] if a.online else []) + ['lib/xlsx.full.min.js', 'js/jalali.js', 'js/store.js', 'js/app.js', 'js/docs.js', 'js/stock.js', 'js/charts.js', 'js/admin.js']
+files = (['lib/supabase.js'] if a.online else []) + ['lib/xlsx.full.min.js', 'js/jalali.js', 'js/store.js', 'js/app.js', 'js/docs.js', 'js/stock.js', 'js/charts.js', 'js/chat.js', 'js/admin.js']
 js = ''.join(f'<script>\n{rd(p)}\n</script>\n' for p in files)
 js = js.replace("if ('serviceWorker' in navigator", "if (false && 'serviceWorker' in navigator")
 icon = f"data:image/svg+xml;base64,{base64.b64encode(rd('icons/icon.svg').encode()).decode()}"
 html = f"""<!doctype html>
 <html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>انباریار — سامانه انبارداری</title><link rel="icon" href="{icon}">
-<style>{fonts}\n{rd('css/app.css')}\n{rd('css/anbar.css')}</style>{shim}{seed}</head>
+<style>{fonts}\n{rd('css/app.css')}\n{rd('css/anbar.css')}\n{rd('css/theme.css')}</style>{shim}{seed}</head>
 <body><div style="display:grid;place-items:center;height:100vh;color:#8a909c">در حال بارگذاری…</div>
 {js}</body></html>"""
 os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)

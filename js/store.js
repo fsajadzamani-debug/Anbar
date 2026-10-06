@@ -176,8 +176,42 @@ class SupaStore {
   async getSettings() { const rows = this._check(await this.sb.from('wh_settings').select('*')); return Object.fromEntries(rows.map(r => [r.key, r.value])); }
   async saveSetting(key, value) { this._check(await this.sb.from('wh_settings').upsert({ key, value })); }
 
+  /* ---------- چت سازمانی ---------- */
+  _chatErr(m) { return /wh_chat|relation|schema cache|wh_in_room/i.test(m) ? 'CHAT_NOT_SETUP' : /row-level/i.test(m) ? 'شما توسط مدیر در حالت سکوت هستید' : m; }
+  async listChatUsers() { return this._check(await this.sb.from('wh_profiles').select('id,username,full_name').order('full_name')); }
+  async listChat(room, beforeId = null, limit = 120) {
+    let q = this.sb.from('wh_chat').select('*').eq('room', room).order('id', { ascending: false }).limit(limit);
+    if (beforeId) q = q.lt('id', beforeId);
+    const r = await q; if (r.error) throw new Error(this._chatErr(r.error.message));
+    return r.data.reverse();
+  }
+  async chatSummary() {   // آخرین پیام‌های همه اتاق‌های من، برای فهرست گفتگوها و شمارش خوانده‌نشده
+    const r = await this.sb.from('wh_chat').select('id,room,user_id,username,body,created_at').order('id', { ascending: false }).limit(800);
+    if (r.error) throw new Error(this._chatErr(r.error.message)); return r.data;
+  }
+  async sendChat(room, body, reply_to = null) {
+    const r = await this.sb.from('wh_chat').insert({ room, body, reply_to }).select();
+    if (r.error) throw new Error(this._chatErr(r.error.message)); return r.data[0];
+  }
+  async editChat(id, body) {
+    const r = await this.sb.from('wh_chat').update({ body }).eq('id', id).select();
+    if (r.error) throw new Error(this._chatErr(r.error.message)); if (!r.data.length) throw new Error('امکان ویرایش این پیام نیست');
+    return r.data[0];
+  }
+  async deleteChat(id) { const r = await this.sb.from('wh_chat').delete().eq('id', id).select('id'); if (r.error) throw new Error(this._chatErr(r.error.message)); if (!r.data.length) throw new Error('امکان حذف این پیام نیست'); }
+  async mutedList() { const r = await this.sb.rpc('wh_muted_list'); return r.error ? [] : r.data.map(x => x.wh_muted_list || x); }
+  async setMute(id, mute) { this._check(await this.sb.rpc('wh_admin_set_mute', { target: id, mute })); }
+  async amMuted() { const r = await this.sb.rpc('wh_is_muted'); return !r.error && r.data === true; }
+  presence(me, onSync) {   // وضعیت آنلاین کاربران
+    this.pres = this.sb.channel('wh-presence', { config: { presence: { key: me } } });
+    this.pres.on('presence', { event: 'sync' }, () => onSync(new Set(Object.keys(this.pres.presenceState()))))
+      .subscribe(st => { if (st === 'SUBSCRIBED') this.pres.track({ at: Date.now() }); });
+  }
+
   subscribe(cb) {
     this.channel = this.sb.channel('wh-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_chat' }, p => cb('chat', p))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wh_users' }, p => cb('whuser', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_docs' }, p => cb('docs', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_items' }, p => cb('items', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_assets' }, p => cb('assets', p))
@@ -329,5 +363,17 @@ class LocalStore {
   async listLog(limit = 300) { return this._get('log', []).slice(-limit).reverse(); }
   async getSettings() { return { company: 'فولاد تکنیک', allow_negative: false, ...this._get('settings', {}) }; }
   async saveSetting(k, v) { const s = this._get('settings', {}); s[k] = v; this._set('settings', s); }
-  subscribe() { }
+  /* چت در حالت محلی (آزمایشی) */
+  async listChatUsers() { return [{ id: 'local', username: 'admin', full_name: 'مدیر (محلی)' }, { id: 'u2', username: 'anbar01', full_name: 'انباردار پالایشگاه' }, { id: 'u3', username: 'anbar02', full_name: 'انباردار نیروگاه' }]; }
+  _chat() { return this._get('chat', []); }
+  async listChat(room) { return this._chat().filter(m => m.room === room); }
+  async chatSummary() { return [...this._chat()].reverse(); }
+  async sendChat(room, body, reply_to = null) { const l = this._chat(); const m = { id: (l.at(-1)?.id || 0) + 1, room, body, reply_to, user_id: 'local', username: this.user.full_name, created_at: new Date().toISOString() }; l.push(m); this._set('chat', l); this._cb?.('chat', { eventType: 'INSERT', new: m }); return m; }
+  async editChat(id, body) { const l = this._chat(); const m = l.find(x => x.id === id); m.body = body; m.edited_at = new Date().toISOString(); this._set('chat', l); this._cb?.('chat', { eventType: 'UPDATE', new: m }); return m; }
+  async deleteChat(id) { this._set('chat', this._chat().filter(x => x.id !== id)); this._cb?.('chat', { eventType: 'DELETE', old: { id } }); }
+  async mutedList() { return this._get('muted', []); }
+  async setMute(id, mute) { const l = new Set(this._get('muted', [])); mute ? l.add(id) : l.delete(id); this._set('muted', [...l]); }
+  async amMuted() { return false; }
+  presence(me, onSync) { onSync(new Set([me, 'u2'])); }
+  subscribe(cb) { this._cb = cb; }
 }

@@ -90,3 +90,4 @@ function normFa(s) {
   return faToEn(String(s ?? '')).replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ة]/g, 'ه')
     .replace(/[أإآ]/g, 'ا').replace(/[ً-ٰٟ‌‏‎]/g, '').replace(/\s+/g, ' ').toLowerCase().trim();
 }
+Jalali.weekday = (d = new Date()) => ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'][d.getDay()];

@@ -75,6 +75,12 @@ const ICON = {
   adj: I('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
   ban: I('<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>'),
   key: I('<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/>'),
+  chat: I('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>'),
+  reply: I('<path d="M10 8 5 12l5 4"/><path d="M5 12h9a5 5 0 0 1 5 5v1"/>'),
+  mute: I('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="m17 9 4 6M21 9l-4 6"/>'),
+  send: I('<path d="M21 3 3 11l7 2 2 7z"/><path d="m10 13 5-5"/>'),
+  eye: I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  eyeOff: I('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
   lock: I('<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
 };
 const DT_ICON = { receipt: ICON.in, issue: ICON.out, transfer: ICON.swap, return: ICON.ret, adjust: ICON.adj };
@@ -179,7 +185,16 @@ async function startApp() {
   renderShell();
   window.onhashchange = () => route();
   route();
+  initChat();
   S.store.subscribe((what, p) => {
+    if (what === 'chat') return onChatEvent(p);
+    if (what === 'whuser') {
+      if (p.new?.user_id === S.user.id && p.new.muted !== S.user.muted) {
+        S.user.muted = p.new.muted; toast(S.user.muted ? 'مدیر شما را در چت ساکت کرد' : 'سکوت شما در چت برداشته شد');
+        if (parseHash().view === 'chat') drawComposer();
+      }
+      return;
+    }
     clearTimeout(liveTmr);
     liveTmr = setTimeout(async () => {
       try {
@@ -242,6 +257,7 @@ function renderPending() {
 }
 
 /* ============================ SHELL ============================ */
+function greetText() { const h = new Date().getHours(); return h < 5 ? 'شب بخیر' : h < 12 ? 'صبح بخیر' : h < 17 ? 'روز بخیر' : 'عصر بخیر'; }
 function applyTheme(t) { document.documentElement.dataset.theme = t; localStorage.setItem('wh_theme', t); }
 function renderShell() {
   const w = writableWh().length;
@@ -250,6 +266,7 @@ function renderShell() {
     <div class="main">
       <header class="top">
         <button class="icon-btn menu-btn" id="menuBtn">${ICON.menu}</button>
+        <div class="greet"><b>${greetText()}، ${esc((S.user.full_name || S.user.username).split(' ')[0])} 👋</b><small>${Jalali.weekday ? Jalali.weekday() + ' ' : ''}${Jalali.today()}</small></div>
         <div class="search">${ICON.search}<input id="gsearch" type="search" placeholder="جستجوی کالا (کد، نام، مشخصات) یا شماره سند…  Ctrl+K"></div>
         <div class="spacer"></div>
         ${w ? `<div class="quick">
@@ -257,14 +274,12 @@ function renderShell() {
           <button class="btn sm qk" data-new="issue" style="--c:${DT.issue.color}">${ICON.out}<span>حواله</span></button>
           <button class="btn sm qk" data-new="transfer" style="--c:${DT.transfer.color}">${ICON.swap}<span>انتقال</span></button></div>` : ''}
         <button class="icon-btn" id="themeBtn" title="تغییر پوسته">${document.documentElement.dataset.theme === 'dark' ? ICON.sun : ICON.moon}</button>
-        <div class="user-chip" id="userChip"><span>${esc(S.user.full_name || S.user.username)}</span><div class="avatar">${esc((S.user.full_name || S.user.username || '?').trim()[0])}</div></div>
       </header>
       <main class="content" id="view"></main>
     </div></div><div id="toasts"></div><div id="print-area"></div>`;
   refreshNav();
   $('#menuBtn').onclick = () => $('#shell').classList.toggle('nav-open');
   $('#themeBtn').onclick = () => { applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); $('#themeBtn').innerHTML = document.documentElement.dataset.theme === 'dark' ? ICON.sun : ICON.moon; };
-  $('#userChip').onclick = () => location.hash = '#/settings';
   $$('[data-new]').forEach(b => b.onclick = () => location.hash = '#/new/' + b.dataset.new);
   let tmr; $('#gsearch').oninput = ev => {
     clearTimeout(tmr); tmr = setTimeout(() => {
@@ -303,16 +318,17 @@ function refreshNav() {
     <div class="wh-tabs" id="whTabs"></div>
     <nav class="nav">
       <div class="nav-label">ابزار</div>
+      ${a('#/chat', ICON.chat, 'چت سازمانی', CHAT.ready && chatUnread() ? chatUnread() : undefined, '', true)}
       ${a('#/items', ICON.box, 'کالاها / شناسنامه کالا', S.items.length)}
       ${a('#/assets', ICON.tag, 'اموال', S.assets.length)}
       ${can.admin() ? `${a('#/warehouses', ICON.wh, 'تعریف انبارها و رمزها', S.warehouses.length)}${a('#/users', ICON.users, 'کاربران و دسترسی')}` : ''}
       ${a('#/settings', ICON.settings, 'تنظیمات')}
       <a href="#" id="navLogout" class="logout">${ICON.logout}<span>خروج</span></a>
     </nav>
-    <div class="side-foot">
-      <span class="mode-pill ${S.store.mode}">${S.store.mode === 'online' ? '● آنلاین — اشتراکی' : '● حالت آزمایشی محلی'}</span>
-      <div class="muted" style="margin-top:6px">${esc(S.user.full_name || S.user.username)} · ${ROLE_FA[S.user.role] || S.user.role}</div>
-    </div>`;
+    <a class="side-user" href="#/settings">
+      <span class="av big" style="--c:#4f6bff">${esc(String(S.user.full_name || S.user.username || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join(''))}<i class="on"></i></span>
+      <span class="su-t"><b>${esc(S.user.full_name || S.user.username)}</b><small>${ROLE_FA[S.user.role] || S.user.role}${S.store.mode === 'local' ? ' · آزمایشی' : ''}</small></span>${ICON.settings}
+    </a></div>`;
   renderTabs();
   $$('#side [data-all]').forEach(x => x.addEventListener('click', () => { if (S.whId !== 'all') { S.whId = 'all'; localStorage.setItem('wh_sel', 'all'); } }));
   $('#navLogout').onclick = async ev => { ev.preventDefault(); await S.store.logout(); location.hash = ''; location.reload(); };
@@ -356,6 +372,17 @@ function setWh(id) {
   if (['doc', 'edit', 'item', 'new', 'warehouses', 'users', 'settings', 'import'].includes(r.view)) location.hash = '#/dash'; else { refreshNav(); route(); }
 }
 
+/* ---------- دکمه نمایش رمز برای همه فیلدهای رمز ---------- */
+function addPwToggles(root = document) {
+  $$('input[type=password]:not([data-pwt]), input.pw:not([data-pwt])', root).forEach(inp => {
+    inp.dataset.pwt = '1'; inp.type = 'password';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-eye'; b.title = 'نمایش رمز'; b.innerHTML = ICON.eye; b.tabIndex = -1;
+    b.onclick = () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.innerHTML = show ? ICON.eyeOff : ICON.eye; b.title = show ? 'پنهان کردن رمز' : 'نمایش رمز'; inp.focus(); };
+    const wrap = document.createElement('span'); wrap.className = 'pw-wrap'; inp.parentNode.insertBefore(wrap, inp); wrap.append(inp, b);
+  });
+}
+new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) addPwToggles(); }).observe(document.documentElement, { childList: true, subtree: true });
+
 /* ============================ ROUTER ============================ */
 function parseHash() {
   const p = (location.hash || '#/dash').slice(2).split('/');
@@ -376,6 +403,7 @@ async function route(silent) {
   try {
     switch (r.view) {
       case 'dash': renderDash(); break;
+      case 'chat': await renderChat(r.id); break;
       case 'docs': renderDocs(r.id || 'all', silent); break;
       case 'doc': await renderDoc(r.id); break;
       case 'new': await renderForm(null, r.id, r.extra); break;

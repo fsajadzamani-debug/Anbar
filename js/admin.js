@@ -34,11 +34,11 @@ function whModal(w, users = []) {
     </div>
     <div class="sec-t" style="margin-top:18px">${ICON.key}ورود به این انبار</div>
     ${accs.length ? `<div>${accs.map(u => `<div class="acc-row"><b class="mono">${esc(u.username)}</b><span class="muted">${esc(u.full_name || '')} · ${(u.members.find(m => m.warehouse_id === w.id) || {}).role === 'viewer' ? 'مشاهده' : 'انباردار'}</span>
-      <input data-pw="${u.id}" class="mono" dir="ltr" placeholder="رمز جدید"><button type="button" class="btn sm" data-setpw="${u.id}">تغییر رمز</button></div>`).join('')}</div>` : ''}
+      <input data-pw="${u.id}" class="mono pw" dir="ltr" placeholder="رمز جدید"><button type="button" class="btn sm" data-setpw="${u.id}">تغییر رمز</button></div>`).join('')}</div>` : ''}
     <p class="muted" style="font-size:12.5px;margin:6px 0 8px">${accs.length ? 'افزودن حساب دیگر برای این انبار (اختیاری):' : 'با این نام کاربری و رمز، انباردار وارد می‌شود و فقط همین انبار را می‌بیند.'}</p>
     <div class="fgrid" style="--cols:2">
       <div class="fld"><label class="l">نام کاربری <small>انگلیسی</small></label><input id="wUser" class="mono" dir="ltr" placeholder="${esc(suggestUser())}"></div>
-      <div class="fld"><label class="l">رمز عبور <small>حداقل ۶</small></label><input id="wPw" class="mono" dir="ltr"></div>
+      <div class="fld"><label class="l">رمز عبور <small>حداقل ۶</small></label><input id="wPw" class="mono pw" dir="ltr" autocomplete="new-password"></div>
     </div>`, { footer: `<button class="btn primary" id="wSave">ذخیره</button>${!isNew ? `<button class="btn danger" id="wDel">${ICON.trash}حذف</button>` : ''}<button class="btn" data-close>انصراف</button>` });
   $('#wName', m.el).focus();
   $$('[data-setpw]', m.el).forEach(b => b.onclick = ev => busy(ev.target, async () => {
@@ -97,7 +97,7 @@ function userModal(u, users) {
     <div class="fgrid" style="--cols:2;margin-bottom:6px">
       <div class="fld"><label class="l">نام و نام خانوادگی *</label><input id="uName" value="${esc(u.full_name || '')}" dir="auto"></div>
       <div class="fld"><label class="l">نام کاربری * <small>انگلیسی</small></label><input id="uUser" value="${esc(u.username || '')}" class="mono" dir="ltr"></div>
-      <div class="fld"><label class="l">${isNew ? 'رمز عبور *' : 'رمز جدید'} <small>${isNew ? 'حداقل ۶' : 'خالی = بدون تغییر'}</small></label><input id="uPw" class="mono" dir="ltr"></div>
+      <div class="fld"><label class="l">${isNew ? 'رمز عبور *' : 'رمز جدید'} <small>${isNew ? 'حداقل ۶' : 'خالی = بدون تغییر'}</small></label><input id="uPw" class="mono pw" autocomplete="new-password" dir="ltr"></div>
     </div>
     ${self ? '<div class="warn-box card">این حساب خودتان است؛ نقش و انبار خودتان را نمی‌توانید تغییر دهید.</div>' : `
     <div class="form-row"><label>نقش</label><select id="uRole">${Object.entries(ROLE_FA).map(([k, v]) => `<option value="${k}" ${u.wh_role === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>

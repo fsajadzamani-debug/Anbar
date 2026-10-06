@@ -3,19 +3,23 @@
    ====================================================== */
 
 /* ============================ انبارها ============================ */
-function renderWarehouses() {
+async function renderWarehouses() {
+  let users = []; try { users = await S.store.listUsers(); } catch (e) { /* ignore */ }
+  const accOf = w => users.filter(u => u.wh_role === 'user' && (u.members || []).some(m => m.warehouse_id === w.id));
   $('#view').innerHTML = `
     <div class="page-head"><div><h1>انبارها</h1><div class="sub">${S.warehouses.length} انبار · ${S.warehouses.filter(w => w.active !== false).length} فعال</div></div>
       <div class="actions"><button class="btn primary" id="add">${ICON.plus}انبار جدید</button></div></div>
-    <div class="card">${S.warehouses.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>کد</th><th>نام انبار</th><th>نوع</th><th>پروژه / کارگاه</th><th>محل</th><th>انباردار</th><th>تلفن</th><th class="num">قلم موجود</th><th>وضعیت</th></tr></thead><tbody>
+    <div class="card">${S.warehouses.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>کد</th><th>نام انبار</th><th>نوع</th><th>پروژه / کارگاه</th><th>محل</th><th>انباردار</th><th>نام کاربری ورود</th><th class="num">قلم موجود</th><th>وضعیت</th></tr></thead><tbody>
       ${S.warehouses.map(w => `<tr data-id="${w.id}" class="${w.active === false ? 'inactive' : ''}"><td class="mono">${esc(w.code || '')}</td><td><b>${esc(w.name)}</b></td><td>${esc(WH_KINDS[w.kind] || '')}</td><td>${esc(w.project || '')}</td><td class="muted">${esc(w.location || '')}</td>
-        <td>${esc(w.keeper_name || '')}</td><td class="mono">${esc(w.phone || '')}</td><td class="mono num">${S.stock.filter(s => s.warehouse_id === w.id && +s.qty > 0).length}</td><td>${w.active === false ? 'غیرفعال' : '<span style="color:var(--ok)">فعال</span>'}</td></tr>`).join('')}
-    </tbody></table></div>` : `<div class="empty"><b>هنوز انباری تعریف نشده</b>اول انبارها (مرکزی و کارگاه‌ها) را تعریف کنید، بعد از «کاربران و دسترسی» انباردار هر انبار را تعیین کنید.</div>`}</div>`;
-  $('#add').onclick = () => whModal(null);
-  $$('tbody tr[data-id]').forEach(r => r.onclick = () => whModal(S.warehouses.find(w => w.id === r.dataset.id)));
+        <td>${esc(w.keeper_name || '')}</td><td class="mono">${accOf(w).map(u => esc(u.username)).join('، ') || '<span class="neg" style="font-family:Vazirmatn">تعریف نشده</span>'}</td><td class="mono num">${S.stock.filter(s => s.warehouse_id === w.id && +s.qty > 0).length}</td><td>${w.active === false ? 'غیرفعال' : '<span style="color:var(--ok)">فعال</span>'}</td></tr>`).join('')}
+    </tbody></table></div>` : `<div class="empty"><b>هنوز انباری تعریف نشده</b>برای هر انبار یک نام کاربری و رمز بگذارید؛ انباردار با آن وارد می‌شود و فقط همان انبار را می‌بیند.</div>`}</div>`;
+  $('#add').onclick = () => whModal(null, users);
+  $$('tbody tr[data-id]').forEach(r => r.onclick = () => whModal(S.warehouses.find(w => w.id === r.dataset.id), users));
 }
-function whModal(w) {
+function whModal(w, users = []) {
   const isNew = !w; w = w || { kind: 'site', active: true, sort: (S.warehouses.length + 1) * 10 };
+  const accs = isNew ? [] : users.filter(u => u.wh_role === 'user' && (u.members || []).some(m => m.warehouse_id === w.id));
+  const suggestUser = () => 'anbar' + String(S.warehouses.length + (isNew ? 1 : 0)).padStart(2, '0');
   const m = modal(isNew ? 'انبار جدید' : 'ویرایش انبار', `
     <div class="fgrid" style="--cols:2">
       <div class="fld wide"><label class="l">نام انبار *</label><input id="wName" value="${esc(w.name)}" dir="auto"></div>
@@ -27,9 +31,26 @@ function whModal(w) {
       <div class="fld"><label class="l">تلفن</label><input id="wPh" value="${esc(w.phone)}" class="mono" dir="ltr"></div>
       <div class="fld"><label class="l">ترتیب نمایش</label><input id="wSort" value="${esc(w.sort ?? 100)}" class="mono" dir="ltr"></div>
       <div class="fld"><label class="l">وضعیت</label><select id="wAct"><option value="1">فعال</option><option value="0" ${w.active === false ? 'selected' : ''}>غیرفعال (بسته‌شده)</option></select></div>
+    </div>
+    <div class="sec-t" style="margin-top:18px">${ICON.key}ورود به این انبار</div>
+    ${accs.length ? `<div>${accs.map(u => `<div class="acc-row"><b class="mono">${esc(u.username)}</b><span class="muted">${esc(u.full_name || '')} · ${(u.members.find(m => m.warehouse_id === w.id) || {}).role === 'viewer' ? 'مشاهده' : 'انباردار'}</span>
+      <input data-pw="${u.id}" class="mono" dir="ltr" placeholder="رمز جدید"><button type="button" class="btn sm" data-setpw="${u.id}">تغییر رمز</button></div>`).join('')}</div>` : ''}
+    <p class="muted" style="font-size:12.5px;margin:6px 0 8px">${accs.length ? 'افزودن حساب دیگر برای این انبار (اختیاری):' : 'با این نام کاربری و رمز، انباردار وارد می‌شود و فقط همین انبار را می‌بیند.'}</p>
+    <div class="fgrid" style="--cols:2">
+      <div class="fld"><label class="l">نام کاربری <small>انگلیسی</small></label><input id="wUser" class="mono" dir="ltr" placeholder="${esc(suggestUser())}"></div>
+      <div class="fld"><label class="l">رمز عبور <small>حداقل ۶</small></label><input id="wPw" class="mono" dir="ltr"></div>
     </div>`, { footer: `<button class="btn primary" id="wSave">ذخیره</button>${!isNew ? `<button class="btn danger" id="wDel">${ICON.trash}حذف</button>` : ''}<button class="btn" data-close>انصراف</button>` });
   $('#wName', m.el).focus();
+  $$('[data-setpw]', m.el).forEach(b => b.onclick = ev => busy(ev.target, async () => {
+    const i = $(`[data-pw="${b.dataset.setpw}"]`, m.el); await S.store.setPassword(b.dataset.setpw, i.value); i.value = ''; toast('رمز تغییر کرد', 'ok');
+  }));
   $('#wSave', m.el).onclick = ev => busy(ev.target, async () => {
+    const uname = $('#wUser', m.el).value.trim().toLowerCase(), pw = $('#wPw', m.el).value;
+    if (uname || pw) {
+      if (!/^[a-z0-9._-]{3,}$/.test(uname)) throw new Error('نام کاربری باید انگلیسی و حداقل ۳ حرف باشد');
+      if (pw.length < 6) throw new Error('رمز باید حداقل ۶ کاراکتر باشد');
+      if (users.some(u => u.username === uname)) throw new Error('این نام کاربری قبلاً ثبت شده');
+    }
     const row = { ...(isNew ? {} : { id: w.id }), name: $('#wName', m.el).value.trim(), code: $('#wCode', m.el).value.trim() || null, kind: $('#wKind', m.el).value, project: $('#wProj', m.el).value.trim() || null,
       location: $('#wLoc', m.el).value.trim() || null, keeper_name: $('#wKeep', m.el).value.trim() || null, phone: faToEn($('#wPh', m.el).value.trim()) || null, sort: num($('#wSort', m.el).value) || 100, active: $('#wAct', m.el).value === '1' };
     if (!row.name) throw new Error('نام انبار لازم است');
@@ -37,7 +58,11 @@ function whModal(w) {
     if (isNew) S.warehouses.push(saved); else Object.assign(w, saved);
     S.warehouses.sort((a, b) => (a.sort ?? 100) - (b.sort ?? 100));
     await log(isNew ? 'create' : 'update', 'warehouse', saved.name, '', saved.id);
-    m.close(); toast('ذخیره شد', 'ok'); refreshNav(); renderWarehouses();
+    if (uname) {
+      const u = await S.store.createUser({ username: uname, password: pw, full_name: row.keeper_name || row.name });
+      await S.store.setUserAccess(u.id, 'user', [{ warehouse_id: saved.id, role: 'keeper' }]);
+    }
+    m.close(); toast(uname ? `ذخیره شد · ورود انبار: ${uname}` : 'ذخیره شد', 'ok'); refreshNav(); renderWarehouses();
   });
   if ($('#wDel', m.el)) $('#wDel', m.el).onclick = async () => {
     if (!(await confirmBox(`انبار «${esc(w.name)}» حذف شود؟ (انبار دارای سند حذف نمی‌شود؛ غیرفعالش کنید)`, 'حذف'))) return;

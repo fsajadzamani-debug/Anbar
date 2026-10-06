@@ -258,7 +258,6 @@ function renderShell() {
         <button class="icon-btn" id="themeBtn" title="تغییر پوسته">${document.documentElement.dataset.theme === 'dark' ? ICON.sun : ICON.moon}</button>
         <div class="user-chip" id="userChip"><span>${esc(S.user.full_name || S.user.username)}</span><div class="avatar">${esc((S.user.full_name || S.user.username || '?').trim()[0])}</div></div>
       </header>
-      <nav class="wh-tabs" id="whTabs"></nav>
       <main class="content" id="view"></main>
     </div></div><div id="toasts"></div><div id="print-area"></div>`;
   refreshNav();
@@ -290,6 +289,8 @@ function refreshNav() {
   const a = (href, icon, label, count, dot, hot) => `<a href="${href}" class="${cur === href || (href !== '#/dash' && cur.startsWith(href + '/')) ? 'active' : ''}">${dot ? `<span class="dot" style="background:${dot}"></span>` : icon}<span>${label}</span>${count !== undefined ? `<span class="count ${hot ? 'hot' : ''}">${count}</span>` : ''}</a>`;
   side.innerHTML = `
     <div class="brand"><div class="brand-mark">WMS</div><div><b>انباریار</b><small>${esc(S.settings.company || 'فولاد تکنیک')}</small></div></div>
+    <div class="nav-label">انبارها</div>
+    <div class="wh-tabs" id="whTabs"></div>
     <nav class="nav">
       ${a('#/dash', ICON.dash, 'داشبورد')}
       ${a('#/stock', ICON.stock, 'موجودی انبار', can.reports() && low ? low : undefined, '', true)}
@@ -325,14 +326,14 @@ function renderTabs() {
     list.map(w => tab(w.id, w.name, w.project || WH_KINDS[w.kind] || '', !can.see(w.id),
       can.see(w.id) && !can.seeAll() ? `<i class="role-dot">${can.write(w.id) ? 'انباردار' : 'مشاهده'}</i>` : (w.active === false ? '<i class="role-dot">غیرفعال</i>' : ''))).join('') +
     (can.admin() ? `<a class="wh-tab add" href="#/warehouses" title="تعریف انبار">${ICON.plus}</a>` : '');
-  $$('[data-wh]', box).forEach(b => b.onclick = () => b.classList.contains('locked') ? toast('به انبار «' + b.querySelector('b').textContent + '» دسترسی ندارید') : setWh(b.dataset.wh));
+  $$('[data-wh]', box).forEach(b => b.onclick = () => { if (b.classList.contains('locked')) return toast('به این انبار دسترسی ندارید'); $('#shell')?.classList.remove('nav-open'); setWh(b.dataset.wh); });
   box.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 function setWh(id) {
   if (id !== 'all' && !can.see(id)) return;
   S.whId = id; localStorage.setItem('wh_sel', id);
   const r = parseHash();
-  if (['doc', 'edit', 'item'].includes(r.view)) location.hash = '#/dash'; else { refreshNav(); route(); }
+  if (['doc', 'edit', 'item', 'new', 'warehouses', 'users', 'settings', 'import'].includes(r.view)) location.hash = '#/dash'; else { refreshNav(); route(); }
 }
 
 /* ============================ ROUTER ============================ */
@@ -366,7 +367,7 @@ async function route(silent) {
       case 'reports': can.reports() ? await renderReports(r.id || 'low') : renderDash(); break;
       case 'import': renderImport(); break;
       case 'log': can.reports() ? await renderLog() : renderDash(); break;
-      case 'warehouses': can.admin() ? renderWarehouses() : renderDash(); break;
+      case 'warehouses': can.admin() ? await renderWarehouses() : renderDash(); break;
       case 'users': can.admin() ? await renderUsers() : renderDash(); break;
       case 'settings': renderSettings(); break;
       default: renderDash();

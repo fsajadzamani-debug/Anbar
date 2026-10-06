@@ -168,3 +168,17 @@ table.lines td[data-u] { font-size: 12.5px; text-align: center; }
 .hb-t i { display: block; height: 100%; background: var(--viz-1); border-radius: 6px 0 0 6px; margin-inline-start: 0; }
 .hb-r b { font-size: 12px; color: var(--ink); }
 .vz-tip { position: fixed; z-index: 300; display: none; background: var(--ink); color: var(--panel); padding: 5px 10px; border-radius: 9px; font-size: 12px; pointer-events: none; white-space: nowrap; }
+
+/* تب انبارها در ستون راست (سایدبار) */
+.side .wh-tabs { flex-direction: column; overflow: visible; padding: 2px 4px 10px; gap: 8px; }
+.side .wh-tab { width: 100%; padding: 9px 12px; border-radius: 16px; }
+.side .wh-tab .tn { flex: 1; min-width: 0; }
+.side .wh-tab .tn b, .side .wh-tab .tn small { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.side .wh-tab.on::after { top: 10px; bottom: 10px; right: 0; left: auto; width: 4px; height: auto; }
+.side .wh-tab.add { justify-content: center; padding: 6px; }
+.side .wh-tab .role-dot { flex: none; }
+.acc-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.acc-row:last-child { border: none; }
+.acc-row b { flex: 1; }
+.acc-row input { width: 130px; }
+.sec-t svg { width: 16px; height: 16px; flex: none; }

@@ -1,5 +1,5 @@
 /* Service Worker — نسخه آفلاینِ پوسته برنامه (داده‌ها همیشه از سرور خوانده می‌شوند) */
-const CACHE = 'anbaryar-v8';
+const CACHE = 'anbaryar-v9';
 const ASSETS = ['./', 'index.html', 'config.js', 'css/app.css', 'css/anbar.css', 'fonts/fonts.css', 'fonts/Vazirmatn.woff2', 'fonts/plexmono-400.woff2', 'fonts/plexmono-600.woff2',
   'lib/supabase.js', 'lib/xlsx.full.min.js', 'js/jalali.js', 'js/store.js', 'js/app.js', 'js/docs.js', 'js/stock.js', 'js/charts.js', 'js/admin.js', 'icons/icon.svg', 'manifest.json'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });

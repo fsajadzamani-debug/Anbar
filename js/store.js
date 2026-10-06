@@ -84,7 +84,7 @@ class SupaStore {
   async deleteUser(id) { this._check(await this.sb.rpc('wh_admin_delete_user', { target: id })); }
   async renameUser(id, username, full_name) {
     const r = await this.sb.rpc('wh_admin_rename_user', { target: id, new_username: username, new_full_name: full_name });
-    if (r.error) throw new Error(/wh_admin_rename_user|schema cache|function/i.test(r.error.message) ? 'برای تغییر نام کاربری، فایل supabase/patch-rename-user.sql را یک‌بار در Supabase اجرا کنید' : errFa(r.error.message));
+    if (r.error) throw new Error(/could not find the function|schema cache/i.test(r.error.message) ? 'تابع تغییر نام در دیتابیس پیدا نشد — فایل patch-rename-user.sql را در Supabase اجرا کنید (' + r.error.message + ')' : 'خطای تغییر نام: ' + r.error.message);
   }
   async createUser({ username, password, full_name }) {
     const tmp = supabase.createClient(this.cfg.url, this.cfg.key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'wh-tmp' } });

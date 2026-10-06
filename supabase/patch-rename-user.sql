@@ -13,3 +13,6 @@ end $$;
 
 revoke all on function public.wh_admin_rename_user(uuid, text, text) from public, anon;
 grant execute on function public.wh_admin_rename_user(uuid, text, text) to authenticated;
+
+-- به‌روزرسانی فوری فهرست توابع API
+notify pgrst, 'reload schema';

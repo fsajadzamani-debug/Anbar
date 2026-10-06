@@ -228,7 +228,7 @@ async function renderForm(id, type, copyFrom) {
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
           <button type="button" class="btn sm" id="addLine">${ICON.plus}ردیف</button>
           <button type="button" class="btn sm" id="pasteXl" title="ستون اول کد کالا، ستون دوم مقدار، ستون سوم توضیح">${ICON.excel}چسباندن از اکسل</button>
-          ${can.writeAny() ? `<button type="button" class="btn sm" id="newItem">${ICON.box}تعریف کالای جدید</button>` : ''}
+          ${can.admin() ? `<button type="button" class="btn sm" id="newItem">${ICON.box}تعریف کالای جدید</button>` : ''}
           <span class="muted" id="lineSum" style="margin-inline-start:auto;font-size:12.5px"></span>
         </div></div>
       <div class="form-actions">
@@ -348,7 +348,7 @@ function itemPicker(input, onPick, whFn, onClear) {
     if (r.left + Math.max(r.width, 420) > window.innerWidth) box.style.left = Math.max(8, window.scrollX + r.right - Math.max(r.width, 420)) + 'px';
     const w = whFn?.();
     box.innerHTML = list.length ? list.map((it, i) => `<div class="ac-i ${i === idx ? 'on' : ''}" data-i="${i}"><span class="mono ac-code">${esc(it.code)}</span><span class="ac-name">${esc(it.name)}${it.spec ? ` <small>${esc(it.spec)}</small>` : ''}</span>${kindTag(it.kind)}<span class="mono ac-st ${w && stockOf(w, it.id) <= 0 ? 'zero' : ''}">${w ? fmtQ(stockOf(w, it.id)) + ' ' + esc(it.unit) : ''}</span></div>`).join('')
-      : `<div class="ac-empty">کالایی پیدا نشد${can.writeAny() ? ' — از دکمه «تعریف کالای جدید» استفاده کنید' : ''}</div>`;
+      : `<div class="ac-empty">کالایی پیدا نشد${can.admin() ? ' — از دکمه «تعریف کالای جدید» استفاده کنید' : ' — برای تعریف کد کالا با مدیر انبار تماس بگیرید'}</div>`;
     $$('.ac-i', box).forEach(el => el.onmousedown = ev => { ev.preventDefault(); pick(+el.dataset.i); });
   };
   const search = () => {

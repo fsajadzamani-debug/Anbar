@@ -43,7 +43,7 @@ function renderStock(keep) {
           <td class="mono muted" style="font-size:12px">${esc(r.last)}</td></tr>`).join('')}
       </tbody></table></div>
       ${rows.length > shown.length ? `<div style="padding:12px;text-align:center"><button class="btn" id="more">نمایش بیشتر (${rows.length - shown.length} باقی‌مانده)</button></div>` : ''}`
-      : `<div class="empty"><b>${S.items.length ? 'کالایی با این شرایط پیدا نشد' : 'هنوز کالایی تعریف نشده'}</b>${!S.items.length && can.writeAny() ? '<a href="#/import">ورود فهرست کالا از اکسل</a>' : ''}</div>`}
+      : `<div class="empty"><b>${S.items.length ? 'کالایی با این شرایط پیدا نشد' : 'هنوز کالایی تعریف نشده'}</b></div>`}
     </div>`;
   const re = () => renderStock(true);
   let t; $('#fq').oninput = ev => { clearTimeout(t); t = setTimeout(() => { st.q = ev.target.value; st.limit = 300; re(); }, 200); };
@@ -132,7 +132,7 @@ function renderItems(keep) {
   $('#view').innerHTML = `
     <div class="page-head"><div><h1>کالاها / شناسنامه کالا</h1><div class="sub">${items.length} قلم · ${Object.entries(KINDS).map(([k, v]) => `${v}: ${S.items.filter(i => i.kind === k).length}`).join(' · ')}</div></div>
       <div class="actions"><button class="btn" id="xls">${ICON.excel}خروجی اکسل</button>
-        ${can.writeAny() ? `<a class="btn" href="#/import">${ICON.import}ورود از اکسل</a><button class="btn primary" id="add">${ICON.plus}کالای جدید</button>` : ''}</div></div>
+        ${can.admin() ? `<button class="btn primary" id="add">${ICON.plus}کالای جدید</button>` : ''}</div></div>
     <div class="card">
       <div class="filters">
         <input id="fq" type="search" placeholder="جستجو…" value="${esc(st.q)}" style="flex:1;min-width:200px">

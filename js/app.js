@@ -305,7 +305,6 @@ function refreshNav() {
       <div class="nav-label">ابزار</div>
       ${a('#/items', ICON.box, 'کالاها / شناسنامه کالا', S.items.length)}
       ${a('#/assets', ICON.tag, 'اموال', S.assets.length)}
-      ${can.writeAny() ? a('#/import', ICON.import, 'ورود از اکسل') : ''}
       ${can.admin() ? `${a('#/warehouses', ICON.wh, 'تعریف انبارها و رمزها', S.warehouses.length)}${a('#/users', ICON.users, 'کاربران و دسترسی')}` : ''}
       ${a('#/settings', ICON.settings, 'تنظیمات')}
       <a href="#" id="navLogout" class="logout">${ICON.logout}<span>خروج</span></a>
@@ -386,7 +385,6 @@ async function route(silent) {
       case 'items': renderItems(silent); break;
       case 'assets': renderAssets(silent); break;
       case 'reports': can.reports() ? await renderReports(r.id || 'low') : renderDash(); break;
-      case 'import': renderImport(); break;
       case 'log': can.reports() ? await renderLog() : renderDash(); break;
       case 'warehouses': can.admin() ? await renderWarehouses() : renderDash(); break;
       case 'users': can.admin() ? await renderUsers() : renderDash(); break;
@@ -438,7 +436,7 @@ function renderDash() {
         ${recent.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>نوع</th><th>شماره</th><th>تاریخ</th><th>انبار</th><th>طرف حساب / پروژه</th><th>ثبت</th></tr></thead><tbody>
         ${recent.map(d => `<tr onclick="location.hash='#/doc/${d.id}'"><td>${dtTag(d.type)}</td><td class="mono">${esc(d.doc_no)}</td><td class="mono">${esc(d.doc_date)}</td>
           <td style="white-space:nowrap">${esc(whName(d.warehouse_id))}${d.to_warehouse_id ? ` ← <b>${esc(whName(d.to_warehouse_id))}</b>` : ''}</td><td class="subj">${esc([d.party, d.project].filter(Boolean).join(' · '))}</td><td class="muted" style="font-size:12px">${esc(d.created_name || '')}</td></tr>`).join('')}
-        </tbody></table></div>` : `<div class="empty"><b>هنوز سندی ثبت نشده</b>${writableWh().length ? 'از دکمه «رسید جدید» یا «ورود از اکسل ← موجودی اول دوره» شروع کنید' : ''}</div>`}
+        </tbody></table></div>` : `<div class="empty"><b>هنوز سندی ثبت نشده</b>${writableWh().length ? 'از دکمه «رسید جدید» شروع کنید' : ''}</div>`}
       </div>
       <div class="card"><div class="card-h">کمتر از حداقل موجودی<div class="actions"><a class="btn sm" href="#/reports/low">گزارش</a></div></div>
         ${low.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>کد</th><th>کالا</th><th>موجودی</th><th>حداقل</th></tr></thead><tbody>

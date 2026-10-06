@@ -476,9 +476,9 @@ create policy wh_members_all on public.wh_members for all using (public.wh_is_ad
 create policy wh_wh_sel on public.wh_warehouses for select using (public.wh_active());
 create policy wh_wh_all on public.wh_warehouses for all using (public.wh_is_admin()) with check (public.wh_is_admin());
 
--- کالاها: همه کاربران فعال می‌بینند؛ انباردارها کالای جدید تعریف می‌کنند؛ ویرایش/حذف با مدیر
+-- کالاها: همه کاربران فعال می‌بینند؛ تعریف، ویرایش و حذف فقط با مدیر
 create policy wh_items_sel on public.wh_items for select using (public.wh_active());
-create policy wh_items_ins on public.wh_items for insert with check (public.wh_can_write_any());
+create policy wh_items_ins on public.wh_items for insert with check (public.wh_is_admin());
 create policy wh_items_upd on public.wh_items for update using (public.wh_is_admin()) with check (public.wh_is_admin());
 create policy wh_items_del on public.wh_items for delete using (public.wh_is_admin());
 

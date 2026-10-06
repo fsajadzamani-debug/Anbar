@@ -178,7 +178,24 @@ class SupaStore {
 
   /* ---------- چت سازمانی ---------- */
   _chatErr(m) { return /wh_chat|relation|schema cache|wh_in_room/i.test(m) ? 'CHAT_NOT_SETUP' : /row-level/i.test(m) ? 'شما توسط مدیر در حالت سکوت هستید' : m; }
-  async listChatUsers() { return this._check(await this.sb.from('wh_profiles').select('id,username,full_name').order('full_name')); }
+  async listChatUsers() {
+    let r = await this.sb.from('wh_profiles').select('id,username,full_name,avatar_url').order('full_name');
+    if (r.error && /avatar_url/.test(r.error.message)) r = await this.sb.from('wh_profiles').select('id,username,full_name').order('full_name');
+    return this._check(r);
+  }
+  async uploadAvatar(blob) {   // عکس کوچک‌شده (JPEG) در پوشه کاربر
+    const path = `${this.user.id}/avatar.jpg`;
+    const up = await this.sb.storage.from('wh-avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '60' });
+    if (up.error) throw new Error(/bucket|not found/i.test(up.error.message) ? 'فضای عکس‌ها ساخته نشده — مدیر باید فایل supabase/patch-avatar.sql را در Supabase اجرا کند' : up.error.message);
+    const url = this.sb.storage.from('wh-avatars').getPublicUrl(path).data.publicUrl + '?v=' + Date.now();
+    const r = await this.sb.from('wh_profiles').update({ avatar_url: url }).eq('id', this.user.id);
+    if (r.error) throw new Error(/avatar_url/.test(r.error.message) ? 'ستون عکس ساخته نشده — مدیر باید فایل supabase/patch-avatar.sql را اجرا کند' : r.error.message);
+    this.user.avatar_url = url; return url;
+  }
+  async removeAvatar() {
+    await this.sb.storage.from('wh-avatars').remove([`${this.user.id}/avatar.jpg`]);
+    this._check(await this.sb.from('wh_profiles').update({ avatar_url: null }).eq('id', this.user.id)); this.user.avatar_url = null;
+  }
   async listChat(room, beforeId = null, limit = 120) {
     let q = this.sb.from('wh_chat').select('*').eq('room', room).order('id', { ascending: false }).limit(limit);
     if (beforeId) q = q.lt('id', beforeId);
@@ -212,6 +229,7 @@ class SupaStore {
     this.channel = this.sb.channel('wh-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_chat' }, p => cb('chat', p))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wh_users' }, p => cb('whuser', p))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wh_profiles' }, p => cb('profile', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_docs' }, p => cb('docs', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_items' }, p => cb('items', p))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'wh_assets' }, p => cb('assets', p))
@@ -235,6 +253,7 @@ class LocalStore {
     try { localStorage.setItem('whl_' + k, JSON.stringify(v)); } catch (e) { /* فقط در حافظه */ }
   }
   async init() {
+    this.user.avatar_url = this._get('avatar', null);
     if (window.ANBAR_DEMO_SEED && !this._get('seeded', false)) {
       const s = window.ANBAR_DEMO_SEED;
       ['warehouses', 'items', 'docs', 'lines', 'assets'].forEach(k => s[k] && this._set(k, s[k]));
@@ -364,7 +383,9 @@ class LocalStore {
   async getSettings() { return { company: 'فولاد تکنیک', allow_negative: false, ...this._get('settings', {}) }; }
   async saveSetting(k, v) { const s = this._get('settings', {}); s[k] = v; this._set('settings', s); }
   /* چت در حالت محلی (آزمایشی) */
-  async listChatUsers() { return [{ id: 'local', username: 'admin', full_name: 'مدیر (محلی)' }, { id: 'u2', username: 'anbar01', full_name: 'انباردار پالایشگاه' }, { id: 'u3', username: 'anbar02', full_name: 'انباردار نیروگاه' }]; }
+  async uploadAvatar(blob) { const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); }); this.user.avatar_url = url; this._set('avatar', url); return url; }
+  async removeAvatar() { this.user.avatar_url = null; this._set('avatar', null); }
+  async listChatUsers() { return [{ id: 'local', avatar_url: this._get('avatar', null), username: 'admin', full_name: 'مدیر (محلی)' }, { id: 'u2', username: 'anbar01', full_name: 'انباردار پالایشگاه' }, { id: 'u3', username: 'anbar02', full_name: 'انباردار نیروگاه' }]; }
   _chat() { return this._get('chat', []); }
   async listChat(room) { return this._chat().filter(m => m.room === room); }
   async chatSummary() { return [...this._chat()].reverse(); }

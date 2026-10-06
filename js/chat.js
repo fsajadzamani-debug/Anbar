@@ -14,7 +14,9 @@ function setSeen(room, id) { const m = seenMap(); if ((m[room] || 0) < id) { m[r
 const AV_COLORS = ['#4f6bff', '#0e8f7e', '#c2410c', '#8a5cff', '#b45309', '#0369a1', '#be185d', '#15803d'];
 const avColor = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV_COLORS[h % AV_COLORS.length]; };
 const initials = name => String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('');
-const avatar = (id, name, online, big) => `<span class="av ${big ? 'big' : ''}" style="--c:${avColor(id)}">${esc(initials(name))}${online ? '<i class="on"></i>' : ''}</span>`;
+const avatarUrl = id => id === S.user?.id ? S.user.avatar_url : CHAT.users.find(u => u.id === id)?.avatar_url;
+const avatar = (id, name, online, big) => { const url = avatarUrl(id);
+  return `<span class="av ${big ? 'big' : ''} ${url ? 'img' : ''}" style="--c:${avColor(id)}">${url ? `<img src="${esc(url)}" alt="" loading="lazy">` : esc(initials(name))}${online ? '<i class="on"></i>' : ''}</span>`; };
 const groupAvatar = () => `<span class="av grp">${I('<circle cx="9" cy="8" r="3.2"/><path d="M3 19c.7-3 3.1-4.6 6-4.6s5.3 1.6 6 4.6"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14.2c2.2.2 3.8 1.5 4.4 3.8"/>')}</span>`;
 const hhmm = iso => { const d = new Date(iso); return `${Jalali.pad(d.getHours())}:${Jalali.pad(d.getMinutes())}`; };
 const dayOf = iso => Jalali.isoToJalali(iso).split(' ')[0];

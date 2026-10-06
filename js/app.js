@@ -188,6 +188,11 @@ async function startApp() {
   initChat();
   S.store.subscribe((what, p) => {
     if (what === 'chat') return onChatEvent(p);
+    if (what === 'profile') {
+      const u = CHAT.users.find(x => x.id === p.new?.id); if (u) Object.assign(u, p.new);
+      if (parseHash().view === 'chat') { drawRooms(); drawMessages(); }
+      return;
+    }
     if (what === 'whuser') {
       if (p.new?.user_id === S.user.id && p.new.muted !== S.user.muted) {
         S.user.muted = p.new.muted; toast(S.user.muted ? 'مدیر شما را در چت ساکت کرد' : 'سکوت شما در چت برداشته شد');
@@ -326,7 +331,7 @@ function refreshNav() {
       <a href="#" id="navLogout" class="logout">${ICON.logout}<span>خروج</span></a>
     </nav>
     <a class="side-user" href="#/settings">
-      <span class="av big" style="--c:#4f6bff">${esc(String(S.user.full_name || S.user.username || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join(''))}<i class="on"></i></span>
+      ${avatar(S.user.id, S.user.full_name || S.user.username, true, true)}
       <span class="su-t"><b>${esc(S.user.full_name || S.user.username)}</b><small>${ROLE_FA[S.user.role] || S.user.role}${S.store.mode === 'local' ? ' · آزمایشی' : ''}</small></span>${ICON.settings}
     </a></div>`;
   renderTabs();
@@ -348,6 +353,7 @@ function renderTabs() {
       ${m('#/stock', ICON.stock, 'موجودی')}
       ${m('#/docs/all', ICON.all, 'همه اسناد', docs.length)}
       ${DT_KEYS.map(t => m('#/docs/' + t, '', DT[t].fa, docs.filter(d => d.type === t).length, DT[t].color)).join('')}
+      ${!can.seeAll() ? m('#/settings', ICON.users, 'پروفایل من') : ''}
     </nav>`;
   };
   box.innerHTML = list.map(w => {

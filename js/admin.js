@@ -148,12 +148,28 @@ async function renderLog() {
     </tbody></table></div>` : '<div class="empty">رویدادی ثبت نشده</div>'}</div>`;
 }
 
+/* ---------- کوچک و مربع کردن عکس (۲۵۶×۲۵۶ JPEG، حدود ۲۰ کیلوبایت) ---------- */
+async function squareJpeg(file, size) {
+  if (!/^image\//.test(file.type)) throw new Error('فقط فایل عکس قابل قبول است');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('عکس قابل خواندن نیست')); i.src = url; });
+    const s = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas'); c.width = c.height = size;
+    c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
+    return await new Promise(res => c.toBlob(res, 'image/jpeg', .85));
+  } finally { URL.revokeObjectURL(url); }
+}
+
 /* ============================ تنظیمات ============================ */
 function renderSettings() {
   const cfg = getConfig();
   $('#view').innerHTML = `<div class="page-head"><div><h1>تنظیمات</h1></div></div>
     <div class="grid-2" style="grid-template-columns:1fr 1fr">
       <div class="card"><div class="card-h">حساب من</div><div class="card-b">
+        <div class="prof-pic">${avatar(S.user.id, S.user.full_name || S.user.username, false, true)}
+          <div><b>عکس پروفایل</b><small class="muted">در چت و منو نمایش داده می‌شود</small>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><label class="btn sm primary" style="cursor:pointer">${ICON.plus}${S.user.avatar_url ? 'تغییر عکس' : 'انتخاب عکس'}<input type="file" accept="image/*" id="avIn" hidden></label>
+          ${S.user.avatar_url ? `<button class="btn sm danger" id="avDel">${ICON.trash}حذف عکس</button>` : ''}</div></div></div>
         <div class="form-row"><label>نام نمایشی</label><div style="display:flex;gap:6px"><input id="myName" value="${esc(S.user.full_name)}" style="flex:1"><button class="btn" id="saveName">ذخیره</button></div></div>
         <div class="muted" style="margin-bottom:12px">نام کاربری: <b class="mono">${esc(S.user.username)}</b> · نقش انبار: ${ROLE_FA[S.user.role]}
           ${S.user.role === 'user' ? '<br>انبارها: ' + (S.user.members || []).map(m => `${esc(whName(m.warehouse_id))} (${MEM_FA[m.role]})`).join('، ') : ''}</div>
@@ -177,6 +193,14 @@ function renderSettings() {
         <button class="btn" id="instBtn" style="display:none">${ICON.download}نصب برنامه روی ویندوز</button>
       </div></div>
     </div>`;
+  $('#avIn').onchange = ev => busy(null, async () => {
+    const f = ev.target.files[0]; if (!f) return;
+    const blob = await squareJpeg(f, 256);
+    await S.store.uploadAvatar(blob);
+    const me = CHAT.users.find(u => u.id === S.user.id); if (me) me.avatar_url = S.user.avatar_url;
+    toast('عکس پروفایل ذخیره شد', 'ok'); refreshNav(); renderSettings();
+  });
+  if ($('#avDel')) $('#avDel').onclick = () => busy(null, async () => { await S.store.removeAvatar(); const me = CHAT.users.find(u => u.id === S.user.id); if (me) me.avatar_url = null; refreshNav(); renderSettings(); });
   $('#saveName').onclick = ev => busy(ev.target, async () => { await S.store.updateMyName($('#myName').value.trim()); toast('ذخیره شد', 'ok'); renderShell(); route(); });
   if ($('#savePw')) $('#savePw').onclick = ev => busy(ev.target, async () => { await S.store.changePassword($('#myPw').value); toast('رمز تغییر کرد', 'ok'); $('#myPw').value = ''; });
   if ($('#logout')) $('#logout').onclick = async () => { await S.store.logout(); location.hash = ''; location.reload(); };

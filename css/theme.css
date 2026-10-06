@@ -236,3 +236,20 @@ html, body { overflow-x: hidden; }
 .bubble .meta { font-family: 'Vazirmatn', Tahoma, sans-serif; letter-spacing: 0; }
 :root[data-theme="dark"] .nav a .count:not(.hot) { background: rgba(255, 255, 255, .08); color: var(--ink-2); }
 @media (max-width: 860px) { .top .quick { order: 2; } #themeBtn { order: 3; } }
+
+/* ارسالی‌ها سمت راست، دریافتی‌ها سمت چپ */
+.msg { align-self: flex-end; flex-direction: row-reverse; max-width: 75%; }
+.msg .bwrap { align-items: flex-end; }
+.msg.mine { align-self: flex-start; flex-direction: row; }
+.msg.mine .bwrap { align-items: flex-start; }
+.bwrap { max-width: 100%; }
+.bubble { width: max-content; max-width: 100%; min-width: 64px; white-space: normal; border-bottom-right-radius: 22px; border-bottom-left-radius: 8px; }
+.msg.mine .bubble { border-bottom-left-radius: 22px; border-bottom-right-radius: 8px; }
+.bubble .meta { text-align: left; }
+.msg.mine .bubble .meta { text-align: left; }
+/* عکس پروفایل */
+.av.img { background: var(--panel-2); overflow: visible; }
+.av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.prof-pic { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.prof-pic .av { width: 72px; height: 72px; font-size: 22px; }
+.prof-pic b { display: block; } .prof-pic small { display: block; font-size: 12px; }

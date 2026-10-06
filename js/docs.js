@@ -194,7 +194,7 @@ async function renderForm(id, type, copyFrom) {
     if (!can.admin()) return void ($('#view').innerHTML = '<div class="card empty"><b>ویرایش سند فقط توسط مدیر انبار ممکن است</b></div>');
     lines = await S.store.getLines(id); type = doc.type;
   } else {
-    if (!DT[type]) type = 'receipt';
+    if (!DT_KEYS.includes(type)) type = 'receipt';
     const wws = writableWh();
     if (!wws.length) return void ($('#view').innerHTML = '<div class="card empty"><b>شما اجازه ثبت سند در هیچ انباری را ندارید</b></div>');
     const defWh = wws.some(w => w.id === S.whId) ? S.whId : (wws.find(w => w.id === localStorage.getItem('wh_last')) || wws[0]).id;

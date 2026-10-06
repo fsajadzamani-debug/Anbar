@@ -18,7 +18,7 @@ const DT = {
   return:   { fa: 'برگشت از مصرف',      short: 'برگشتی',  color: '#0e8f7e', party: 'تحویل‌دهنده (پیمانکار / واحد)', ref: 'شماره حواله مرتبط',     sign: +1, signs: ['تحویل‌دهنده', 'انباردار', 'مدیر انبار'] },
   adjust:   { fa: 'تعدیل / انبارگردانی', short: 'تعدیل',   color: '#7c3aed', party: 'مسئول شمارش',           ref: 'شماره صورتجلسه',               sign: +1, signs: ['شمارنده', 'انباردار', 'مدیر انبار'] },
 };
-const DT_KEYS = ['receipt', 'issue', 'transfer', 'return', 'adjust'];
+const DT_KEYS = ['receipt', 'issue', 'transfer'];   // برگشتی و تعدیل در منو نیستند؛ تعدیل فقط برای موجودی اول دوره (ورود از اکسل)
 const KINDS = { civil: 'قطعات سیویل', material: 'مصالح', consumable: 'مصرفی', tool: 'ابزارآلات', asset: 'اموال' };
 const KIND_COLOR = { civil: '#b45309', material: '#0369a1', consumable: '#64748b', tool: '#7c3aed', asset: '#be185d' };
 const WH_KINDS = { central: 'انبار مرکزی', site: 'انبار کارگاه / پروژه', yard: 'یارد / محوطه', other: 'سایر' };

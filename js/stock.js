@@ -306,19 +306,19 @@ async function renderReports(tab) {
         const k = (m.project || '(بدون پروژه)') + '|' + m.item_id; const a = agg.get(k) || { p: m.project || '(بدون پروژه)', id: m.item_id, out: 0, back: 0 };
         if (m.type === 'issue') a.out -= +m.qty; else a.back += +m.qty; agg.set(k, a);
       });
-      head = ['پروژه / محل مصرف', 'کد', 'شرح کالا', 'واحد', 'حواله شده', 'برگشتی', 'مصرف خالص'];
-      rows = [...agg.values()].map(a => { const i = itemOf(a.id) || {}; return { id: a.id, c: [a.p, i.code, i.name, i.unit, a.out, a.back, a.out - a.back] }; })
+      head = ['پروژه / محل مصرف', 'کد', 'شرح کالا', 'واحد', 'حواله شده'];
+      rows = [...agg.values()].map(a => { const i = itemOf(a.id) || {}; return { id: a.id, c: [a.p, i.code, i.name, i.unit, a.out] }; })
         .sort((x, y) => x.c[0].localeCompare(y.c[0], 'fa') || String(x.c[1]).localeCompare(y.c[1], undefined, { numeric: true }));
-      note = 'حواله‌ها منهای برگشتی‌ها در بازه انتخابی، بر اساس فیلد «پروژه / محل مصرف».';
+      note = 'حواله‌ها در بازه انتخابی، بر اساس فیلد «پروژه / محل مصرف».';
     }
   } else if (tab === 'civil') {
     const moves = (await S.store.listMoves({})).filter(m => vis.has(m.warehouse_id) && (m.type === 'issue' || m.type === 'return') && itemOf(m.item_id)?.kind === 'civil');
     const agg = new Map();
     moves.forEach(m => { const k = (m.project || m.party || '(نامشخص)') + '|' + m.item_id; const a = agg.get(k) || { p: m.project || m.party || '(نامشخص)', id: m.item_id, q: 0, last: '' }; a.q -= +m.qty; if (m.doc_date > a.last) a.last = m.doc_date; agg.set(k, a); });
-    head = ['پروژه / پیمانکار', 'کد', 'شرح قطعه', 'واحد', 'نزد پروژه (حواله − برگشتی)', 'وزن (kg)', 'آخرین گردش'];
+    head = ['پروژه / پیمانکار', 'کد', 'شرح قطعه', 'واحد', 'حواله شده به پروژه', 'وزن (kg)', 'آخرین گردش'];
     rows = [...agg.values()].filter(a => Math.abs(a.q) > 1e-9).map(a => { const i = itemOf(a.id) || {}; return { id: a.id, c: [a.p, i.code, i.name, i.unit, a.q, i.weight ? +(i.weight * a.q).toFixed(1) : '', a.last] }; })
       .sort((x, y) => x.c[0].localeCompare(y.c[0], 'fa'));
-    note = 'قطعات سیویل (قالب، داربست، …) که حواله شده و هنوز برگشت نخورده‌اند — برای پیگیری برگشت قطعات از پروژه‌ها/پیمانکاران.';
+    note = 'جمع قطعات سیویل (قالب، داربست، …) حواله‌شده به هر پروژه/پیمانکار.';
   }
   const numCols = new Set(head.map((h, i) => rows.some(r => typeof r.c[i] === 'number') ? i : -1));
   $('#view').innerHTML = `

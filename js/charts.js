@@ -77,7 +77,7 @@ function renderWhHome() {
   $('#view').innerHTML = `
     <div class="page-head"><div><h1>${esc(w.name)}</h1><div class="sub">${esc([w.project, w.keeper_name, w.phone].filter(Boolean).join(' · '))} · ${canW ? 'دسترسی انباردار' : 'فقط مشاهده'} · امروز ${Jalali.today()}</div></div>
       <div class="actions"><a class="btn" href="#/stock">${ICON.stock}موجودی این انبار</a></div></div>
-    ${canW ? `<div class="act-grid">${['receipt', 'issue', 'transfer', 'return'].map(act).join('')}</div>` : ''}
+    ${canW ? `<div class="act-grid">${DT_KEYS.map(act).join('')}</div>` : ''}
     <div class="grid-2">
       <div class="card"><div class="card-h">آخرین اسناد این انبار<div class="actions"><a class="btn sm" href="#/docs/all">همه</a></div></div>
         ${docs.length ? `<div class="tbl-wrap"><table class="tbl"><tbody>${docs.slice(0, 12).map(row).join('')}</tbody></table></div>` : '<div class="empty"><b>هنوز سندی ثبت نشده</b></div>'}</div>

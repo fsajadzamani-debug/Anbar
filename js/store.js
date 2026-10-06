@@ -37,7 +37,10 @@ class SupaStore {
   constructor(cfg) {
     this.mode = 'online';
     this.cfg = cfg;
-    this.sb = supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, storageKey: 'wh-auth' } });
+    // ورود فقط برای همین پنجره/تب نگه داشته می‌شود؛ با بستن برنامه دوباره صفحه ورود می‌آید
+    try { localStorage.removeItem('wh-auth'); } catch (e) { /* ignore */ }
+    let store; try { sessionStorage.getItem('x'); store = sessionStorage; } catch (e) { store = undefined; }
+    this.sb = supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: !!store, storage: store, storageKey: 'wh-auth' } });
     this.user = null;
   }
   _check({ data, error }) { if (error) throw new Error(errFa(error.message)); return data; }

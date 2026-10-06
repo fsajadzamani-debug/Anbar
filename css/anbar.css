@@ -182,3 +182,14 @@ table.lines td[data-u] { font-size: 12.5px; text-align: center; }
 .acc-row b { flex: 1; }
 .acc-row input { width: 130px; }
 .sec-t svg { width: 16px; height: 16px; flex: none; }
+
+/* گروه هر انبار با ماژول‌های خودش */
+.wh-group.open { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); border-radius: 18px; padding-bottom: 6px; }
+.wh-mods { padding: 6px 6px 0 2px; }
+.wh-mods a { padding: 5px 10px; font-size: 13px; }
+.wh-mods a svg { width: 15px; height: 15px; }
+.side .wh-tab.add { justify-content: center; gap: 6px; font-size: 12.5px; color: var(--accent); box-shadow: none; border: 1.5px dashed var(--line-2); background: transparent; }
+.side .wh-tab.add svg { width: 15px; height: 15px; }
+.admin-nav a svg { color: var(--accent); }
+.nav a.logout { color: var(--danger); }
+.nav a.logout svg { color: var(--danger); }

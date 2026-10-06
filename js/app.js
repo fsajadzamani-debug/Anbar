@@ -227,6 +227,7 @@ async function renderLogin(firstRun) {
     ev.preventDefault(); const f = ev.target;
     await busy(f.querySelector('button'), async () => {
       S.user = firstRun ? await S.store.register(f.u.value, f.p.value, f.full_name.value) : await S.store.login(f.u.value, f.p.value);
+      S.whId = 'all'; try { localStorage.removeItem('wh_sel'); } catch (e) { /* ignore */ }
       if (S.user.role === 'none' || (S.user.role === 'user' && !(S.user.members || []).length)) return renderPending();
       await startApp();
     });
@@ -283,51 +284,71 @@ function renderShell() {
 function refreshNav() {
   const side = $('#side'); if (!side) return;
   const cur = location.hash || '#/dash';
-  const vis = new Set(selWh().map(w => w.id));
-  const docs = S.docs.filter(d => vis.has(d.warehouse_id) || vis.has(d.to_warehouse_id));
-  const low = lowItems().length;
-  const a = (href, icon, label, count, dot, hot) => `<a href="${href}" class="${cur === href || (href !== '#/dash' && cur.startsWith(href + '/')) ? 'active' : ''}">${dot ? `<span class="dot" style="background:${dot}"></span>` : icon}<span>${label}</span>${count !== undefined ? `<span class="count ${hot ? 'hot' : ''}">${count}</span>` : ''}</a>`;
+  const a = (href, icon, label, count, dot, hot, onAll) => {
+    const on = (onAll === undefined || onAll === (S.whId === 'all')) && (cur === href || (href !== '#/dash' && cur.startsWith(href + '/')));
+    return `<a href="${href}" class="${on ? 'active' : ''}">${dot ? `<span class="dot" style="background:${dot}"></span>` : icon}<span>${label}</span>${count !== undefined ? `<span class="count ${hot ? 'hot' : ''}">${count}</span>` : ''}</a>`;
+  };
+  const low = can.reports() ? lowItems(myWh()).length : 0;
   side.innerHTML = `
     <div class="brand"><div class="brand-mark">WMS</div><div><b>انباریار</b><small>${esc(S.settings.company || 'فولاد تکنیک')}</small></div></div>
+    ${can.reports() ? `<div class="nav-label">مدیریت کل</div>
+    <nav class="nav admin-nav">
+      <a href="#/dash" data-all class="${S.whId === 'all' && cur.startsWith('#/dash') ? 'active' : ''}">${ICON.report}<span>آمار و چارت همه انبارها</span></a>
+      <a href="#/stock" data-all class="${S.whId === 'all' && cur.startsWith('#/stock') ? 'active' : ''}">${ICON.stock}<span>موجودی کل انبارها</span>${low ? `<span class="count hot">${low}</span>` : ''}</a>
+      <a href="#/docs/all" data-all class="${S.whId === 'all' && cur.startsWith('#/docs') ? 'active' : ''}">${ICON.all}<span>اسناد همه انبارها</span></a>
+      ${a('#/reports', ICON.report, 'گزارش‌ها')}
+      ${a('#/log', ICON.log, 'تاریخچه تغییرات')}
+    </nav>` : ''}
     <div class="nav-label">انبارها</div>
     <div class="wh-tabs" id="whTabs"></div>
     <nav class="nav">
-      ${a('#/dash', ICON.dash, 'داشبورد')}
-      ${a('#/stock', ICON.stock, 'موجودی انبار', can.reports() && low ? low : undefined, '', true)}
-      <div class="nav-label">اسناد انبار</div>
-      ${a('#/docs/all', ICON.all, 'همه اسناد', docs.filter(d => d.status !== 'void').length)}
-      ${DT_KEYS.map(t => a('#/docs/' + t, '', DT[t].fa, docs.filter(d => d.type === t && d.status !== 'void').length, DT[t].color)).join('')}
       <div class="nav-label">ابزار</div>
       ${a('#/items', ICON.box, 'کالاها / شناسنامه کالا', S.items.length)}
       ${a('#/assets', ICON.tag, 'اموال', S.assets.length)}
-      ${can.reports() ? a('#/reports', ICON.report, 'گزارش‌ها و آمار') : ''}
       ${can.writeAny() ? a('#/import', ICON.import, 'ورود از اکسل') : ''}
-      ${can.reports() ? a('#/log', ICON.log, 'تاریخچه') : ''}
-      ${can.admin() ? `<div class="nav-label">مدیریت</div>
-        ${a('#/warehouses', ICON.wh, 'انبارها', S.warehouses.length)}
-        ${a('#/users', ICON.users, 'کاربران و دسترسی')}` : ''}
+      ${can.admin() ? `${a('#/warehouses', ICON.wh, 'تعریف انبارها و رمزها', S.warehouses.length)}${a('#/users', ICON.users, 'کاربران و دسترسی')}` : ''}
       ${a('#/settings', ICON.settings, 'تنظیمات')}
+      <a href="#" id="navLogout" class="logout">${ICON.logout}<span>خروج</span></a>
     </nav>
     <div class="side-foot">
       <span class="mode-pill ${S.store.mode}">${S.store.mode === 'online' ? '● آنلاین — اشتراکی' : '● حالت آزمایشی محلی'}</span>
-      <div class="muted" style="margin-top:6px">${esc(S.user.username)} · ${ROLE_FA[S.user.role] || S.user.role}</div>
+      <div class="muted" style="margin-top:6px">${esc(S.user.full_name || S.user.username)} · ${ROLE_FA[S.user.role] || S.user.role}</div>
     </div>`;
   renderTabs();
+  $$('#side [data-all]').forEach(x => x.addEventListener('click', () => { if (S.whId !== 'all') { S.whId = 'all'; localStorage.setItem('wh_sel', 'all'); } }));
+  $('#navLogout').onclick = async ev => { ev.preventDefault(); await S.store.logout(); location.hash = ''; location.reload(); };
   $$('#side a').forEach(x => x.addEventListener('click', () => $('#shell').classList.remove('nav-open')));
 }
 
-/* ---------- تب انبارها ---------- */
+/* ---------- تب انبارها: هر انبار ماژول‌های خودش را دارد ---------- */
 function renderTabs() {
   const box = $('#whTabs'); if (!box) return;
+  const cur = location.hash || '#/dash';
   const list = S.warehouses.filter(w => w.active !== false || can.admin());
-  const tab = (id, name, sub, locked, extra = '') => `<button class="wh-tab ${S.whId === id ? 'on' : ''} ${locked ? 'locked' : ''}" data-wh="${id}" ${locked ? 'title="به این انبار دسترسی ندارید"' : ''}>
-    ${locked ? `<span class="lk">${ICON.lock}</span>` : ICON.wh}<span class="tn"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>${extra}</button>`;
-  box.innerHTML = (can.seeAll() ? tab('all', 'همه انبارها', list.length + ' انبار', false) : '') +
-    list.map(w => tab(w.id, w.name, w.project || WH_KINDS[w.kind] || '', !can.see(w.id),
-      can.see(w.id) && !can.seeAll() ? `<i class="role-dot">${can.write(w.id) ? 'انباردار' : 'مشاهده'}</i>` : (w.active === false ? '<i class="role-dot">غیرفعال</i>' : ''))).join('') +
-    (can.admin() ? `<a class="wh-tab add" href="#/warehouses" title="تعریف انبار">${ICON.plus}</a>` : '');
-  $$('[data-wh]', box).forEach(b => b.onclick = () => { if (b.classList.contains('locked')) return toast('به این انبار دسترسی ندارید'); $('#shell')?.classList.remove('nav-open'); setWh(b.dataset.wh); });
-  box.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  const modules = w => {
+    const docs = S.docs.filter(d => d.status !== 'void' && (d.warehouse_id === w.id || d.to_warehouse_id === w.id));
+    const m = (href, icon, label, count, dot) => `<a href="${href}" class="${cur === href || (href !== '#/dash' && cur.startsWith(href + '/')) ? 'active' : ''}">${dot ? `<span class="dot" style="background:${dot}"></span>` : icon}<span>${label}</span>${count !== undefined ? `<span class="count">${count}</span>` : ''}</a>`;
+    return `<nav class="nav wh-mods">
+      ${m('#/dash', ICON.dash, 'داشبورد انبار')}
+      ${m('#/stock', ICON.stock, 'موجودی')}
+      ${m('#/docs/all', ICON.all, 'همه اسناد', docs.length)}
+      ${DT_KEYS.map(t => m('#/docs/' + t, '', DT[t].fa, docs.filter(d => d.type === t).length, DT[t].color)).join('')}
+    </nav>`;
+  };
+  box.innerHTML = list.map(w => {
+    const locked = !can.see(w.id), on = S.whId === w.id;
+    const extra = !locked && !can.seeAll() ? `<i class="role-dot">${can.write(w.id) ? 'انباردار' : 'مشاهده'}</i>` : (w.active === false ? '<i class="role-dot">غیرفعال</i>' : '');
+    return `<div class="wh-group ${on ? 'open' : ''}"><button class="wh-tab ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-wh="${w.id}" ${locked ? 'title="به این انبار دسترسی ندارید"' : ''}>
+      ${locked ? `<span class="lk">${ICON.lock}</span>` : ICON.wh}<span class="tn"><b>${esc(w.name)}</b>${w.project || WH_KINDS[w.kind] ? `<small>${esc(w.project || WH_KINDS[w.kind])}</small>` : ''}</span>${extra}</button>
+      ${on ? modules(w) : ''}</div>`;
+  }).join('') + (can.admin() ? `<a class="wh-tab add" href="#/warehouses" title="تعریف انبار">${ICON.plus}<span>انبار جدید</span></a>` : '')
+    + (!list.length ? '<div class="muted" style="padding:6px 10px;font-size:12px">انباری تعریف نشده</div>' : '');
+  $$('[data-wh]', box).forEach(b => b.onclick = () => {
+    if (b.classList.contains('locked')) return toast('به این انبار دسترسی ندارید');
+    S.whId = b.dataset.wh; localStorage.setItem('wh_sel', S.whId);
+    if (location.hash === '#/dash') { refreshNav(); route(); } else location.hash = '#/dash';
+  });
+  $$('.wh-mods a', box).forEach(x => x.addEventListener('click', () => $('#shell').classList.remove('nav-open')));
 }
 function setWh(id) {
   if (id !== 'all' && !can.see(id)) return;
@@ -381,7 +402,7 @@ function lowItems(whs = selWh()) {
   return S.items.filter(i => i.active !== false && +i.min_qty > 0 && stockTotal(i.id, whs) < +i.min_qty);
 }
 function renderDash() {
-  if (!can.reports()) return renderWhHome();
+  if (!can.reports() || S.whId !== 'all') return renderWhHome();
   const whs = selWh(), vis = new Set(whs.map(w => w.id));
   const docs = S.docs.filter(d => d.status !== 'void' && (vis.has(d.warehouse_id) || vis.has(d.to_warehouse_id)));
   const today = Jalali.today(), month = today.slice(0, 7);
